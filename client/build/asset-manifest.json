@@ -1,0 +1,14 @@
+{
+  "files": {
+    "main.css": "/uk-portal/static/css/main.b97e6a31.css",
+    "main.js": "/uk-portal/static/js/main.49ecce80.js",
+    "static/media/uk logo.jpg": "/uk-portal/static/media/uk logo.20397fd4ec7e4019aafe.jpg",
+    "index.html": "/uk-portal/index.html",
+    "main.b97e6a31.css.map": "/uk-portal/static/css/main.b97e6a31.css.map",
+    "main.49ecce80.js.map": "/uk-portal/static/js/main.49ecce80.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.b97e6a31.css",
+    "static/js/main.49ecce80.js"
+  ]
+}

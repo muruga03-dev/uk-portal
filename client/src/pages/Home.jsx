@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import GoogleMap from "./GoogleMap";
 import "../styles.css"; // import styles
 import Footer from "../components/Footer";
+import Contact from "./Contact";
 
 const Home = () => {
   const { t } = useTranslation();
@@ -72,6 +73,7 @@ const Home = () => {
             <h3 className="step-title">🖼️ {t("viewGallery")}</h3>
             <p className="step-text">
               {t("viewGalleryDetails")}
+              
             </p>
           </div>
           <div className="step-card">
@@ -90,6 +92,7 @@ const Home = () => {
           <GoogleMap />
         </div>
       </section>
+      <Contact />
 
       {/* Footer */}
       <Footer />

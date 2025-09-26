@@ -6,43 +6,42 @@ const Workers = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
+
   useEffect(() => {
     const fetchWorkers = async () => {
       try {
-        // ✅ Correct endpoint (adjust if your backend path differs)
-        const res = await axios.get("http://localhost:5000/api/admin/workers");
-        setWorkers(res.data);
+        const res = await axios.get(`${API_BASE}/api/admin/workers`);
+        setWorkers(res.data || []);
       } catch (err) {
         console.error("Error fetching workers:", err);
-        setError("Failed to load worker types. Please try again later.");
+        setError("⚠️ Failed to load worker types. Please try again later.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchWorkers();
-  }, []);
+  }, [API_BASE]);
 
-  if (loading) {
+  if (loading)
     return (
-      <div className="p-8 text-center text-lg font-semibold">
-        Loading workers...
+      <div className="p-8 text-center text-lg font-semibold animate-pulse">
+        ⏳ Loading worker types...
       </div>
     );
-  }
 
-  if (error) {
+  if (error)
     return (
-      <div className="p-8 text-center text-red-600 font-semibold">
-        {error}
-      </div>
+      <div className="p-8 text-center text-red-600 font-semibold">{error}</div>
     );
-  }
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
-      <h2 className="text-3xl font-bold mb-6">Worker Types</h2>
-      
+      <h2 className="text-3xl font-bold mb-6 text-center text-green-700">
+        Worker Types
+      </h2>
+
       {workers.length === 0 ? (
         <p className="text-gray-600 text-lg text-center">
           No worker types available.
@@ -52,10 +51,10 @@ const Workers = () => {
           {workers.map((worker) => (
             <div
               key={worker._id}
-              className="border rounded p-4 shadow hover:shadow-lg transition"
+              className="border rounded-lg p-4 shadow-md hover:shadow-xl transition-transform duration-300 hover:scale-105 bg-white"
             >
-              <h3 className="text-xl font-semibold">{worker.type}</h3>
-              <p className="text-gray-700">{worker.description}</p>
+              <h3 className="text-xl font-semibold mb-2">{worker.type}</h3>
+              <p className="text-gray-700">{worker.description || "No description available."}</p>
             </div>
           ))}
         </div>

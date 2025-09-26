@@ -8,54 +8,51 @@ const History = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
+
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/admin/history");
+        const res = await axios.get(`${API_BASE}/api/admin/history`);
+        const latestHistory = res.data?.[res.data.length - 1];
 
-        if (res.data.length > 0) {
-          const latestHistory = res.data[res.data.length - 1]; // pick latest entry
+        if (latestHistory?.content) {
           const lang = i18n.language;
-
-          if (latestHistory.content && latestHistory.content[lang]) {
-            setHistory(latestHistory.content[lang]);
-          } else {
-            setHistory("History not available in this language.");
-          }
+          setHistory(latestHistory.content[lang] || t("history_not_available"));
         } else {
-          setHistory("No history found.");
+          setHistory(t("no_history_found"));
         }
       } catch (err) {
         console.error("Error fetching history:", err);
-        setError("Failed to load history. Please try again later.");
+        setError(t("failed_load_history"));
       } finally {
         setLoading(false);
       }
     };
 
     fetchHistory();
-  }, [i18n.language]);
+  }, [i18n.language, API_BASE, t]);
 
-  if (loading) {
+  if (loading)
     return (
-      <div className="p-8 text-center text-lg font-semibold">
-        Loading history...
+      <div className="p-8 text-center text-lg font-semibold animate-pulse">
+        ⏳ {t("loading_history")}
       </div>
     );
-  }
 
-  if (error) {
+  if (error)
     return (
       <div className="p-8 text-center text-red-600 font-semibold">
-        {error}
+        ⚠️ {error}
       </div>
     );
-  }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <h2 className="text-3xl font-bold mb-4">{t("history")}</h2>
-      <p className="text-lg whitespace-pre-line">{history}</p>
+    <div className="p-8 max-w-4xl mx-auto bg-white shadow-md rounded-lg">
+      <h2 className="text-3xl font-bold mb-6 text-center text-green-700">
+        {t("history")}
+      </h2>
+      <p className="text-lg whitespace-pre-line text-gray-800">{history}</p>
     </div>
   );
 };

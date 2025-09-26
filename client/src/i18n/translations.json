@@ -1,0 +1,62 @@
+{
+  "en": {
+     "translation": {
+    "home": "Home",
+    "history": "History",
+    "events": "Events",
+    "gallery": "Gallery",
+    "workers": "Workers",
+    "familyLogin": "Family Login",
+    "adminLogin": "Admin Login",
+    "welcome": "Welcome to Udaikulam Village Portal",
+    "name": "Udaikulam Village Portal",
+    "explain": "This portal helps villagers access information, manage taxes, and securely store documents. Explore the culture, connect with the community, and discover the spirit of Udaikulam.",
+    "about": "About Udaikulam",
+    "findUsOnMap": "Find Us on Map",
+    "value":" Udaikulam is a vibrant village with rich traditions, a close-knit community, and a beautiful temple at its heart. Our mission is to preserve our culture while moving forward with digital empowerment.",
+    "adminDashboard": "Admin Dashboard",
+    "manageEvents": "Manage Events",
+    "manageWorkers": "Manage Workers",
+    "manageAchievements": "Manage Achievements",
+    "howToUse": "How to Use This Website",
+    "familyLoginStep": "Family Login: Access your personal dashboard to view tax details, download documents, and stay updated with village news.",
+    "adminLoginStep": "Admin Login: For village administrators to manage events, workers, and achievements.",
+    "exploreEvents": "Explore Events: Stay informed about upcoming village events and activities.",
+    "viewGallery": "View Gallery: Browse photos showcasing the vibrant life and culture of Udaikulam.",
+    "contactUs": "Contact Us: Reach out for support or inquiries about the portal.",
+    "historyDetails": "Learn about the village’s rich heritage, traditions, and temple history.",
+    "exploreEventsDetails": "Stay updated with upcoming cultural programs, temple functions, and community activities.",
+    "viewGalleryDetails": "Explore photos and memories of past events and community gatherings."
+
+     }
+  },
+  "ta": {
+    "translation": {
+    "home": "முகப்பு",
+    "history": "வரலாறு",
+    "events": "நிகழ்வுகள்",
+    "gallery": "புகைப்படக்காட்சி",
+    "workers": "வேலைப்பாடு",
+    "familyLogin": "குடும்ப உள்நுழைவு",
+    "adminLogin": "நிர்வாக உள்நுழைவு",
+    "welcome": "உடைகுளம் கிராம தளம் வரவேற்கிறது",
+    "name": "உடைகுளம் கிராம தளம்",
+    "explain": "இந்த தளம் கிராமவாசிகளுக்கு தகவல்களை அணுக, வரிகளை நிர்வகிக்க மற்றும் ஆவணங்களை பாதுகாப்பாக சேமிக்க உதவுகிறது. கலாச்சாரத்தை ஆராய்ந்து, சமூகத்துடன் இணைந்து, உடைகுளத்தின் உணர்வைக் கண்டறியுங்கள்.",
+    "about": "உடைகுளம் பற்றி",
+    "findUsOnMap": "வரைபடத்தில் எங்களை கண்டறியவும்",
+    "value":"உடைகுளம் என்பது செழிப்பான பாரம்பரியங்கள், நெருக்கமான சமூக மற்றும் அதன் இதயத்தில் ஒரு அழகான கோவில் கொண்ட ஒரு உயிருள்ள கிராமம். எங்கள் பண்பு கலைச்சொல்லை பாதுகாப்பது மற்றும் டிஜிட்டல் அதிகாரப்பூர்வத்துடன் முன்னேறுவது எங்கள் பணி.",
+    "adminDashboard": "நிர்வாக டாஷ்போர்டு",
+    "manageEvents": "நிகழ்வுகளை நிர்வகிக்கவும்",
+    "manageWorkers": "வேலைப்பாடுகளை நிர்வகிக்கவும்",
+    "manageAchievements": "சாதனைகளை நிர்வகிக்கவும்",
+    "howToUse": "இந்த இணையதளத்தை எப்படி பயன்படுத்துவது",
+    "familyLoginStep": "குடும்ப உள்நுழைவு: உங்கள் தனிப்பட்ட டாஷ்போர்டுக்கு அணுகி வரி விவரங்களைப் பார்க்க, ஆவணங்களை பதிவிறக்கம் செய்யவும் மற்றும் கிராம செய்திகளுடன் புதுப்பிக்கவும்.",
+    "adminLoginStep": "நிர்வாக உள்நுழைவு: கிராம நிர்வாகிகளுக்கு நிகழ்வுகள், வேலைப்பாடுகள் மற்றும் சாதனைகளை நிர்வகிக்க.",
+    "exploreEvents": "நிகழ்வுகளை ஆராயுங்கள்: வரவிருக்கும் கிராம நிகழ்வுகள் மற்றும் செயல்பாடுகள் பற்றி தகவல் பெறுங்கள்.",
+    "viewGallery": "கேலரியைப் பார்க்கவும்: உடைகுளத்தின் உயிருள்ள வாழ்க்கை மற்றும் கலாச்சாரத்தை வெளிப்படுத்தும் புகைப்படங்களை உலாவவும்.",
+    "contactUs": "எங்களை தொடர்பு கொள்ளவும்: தளத்திற்கான ஆதரவு அல்லது விசாரணைகளுக்கு அணுகவும்.",
+    "historyDetails": "கிராமத்தின் செழிப்பான பாரம்பரியங்கள், மரபுகள் மற்றும் கோவில் வரலாற்றைப் பற்றி அறிய்க.",
+    "exploreEventsDetails": "வரவிருக்கும் கலாச்சார நிகழ்ச்ச்கள், கோவில் நிகழ்வுகள் மற்றும் சமூக செயல்பாடுகள் பற்றி புதுப்பிக்கப்படுங்கள்."
+    }
+  }
+}

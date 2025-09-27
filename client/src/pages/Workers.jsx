@@ -47,14 +47,16 @@ const Workers = () => {
           No worker types available.
         </p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {workers.map((worker) => (
             <div
               key={worker._id}
-              className="border rounded-lg p-4 shadow-md hover:shadow-xl transition-transform duration-300 hover:scale-105 bg-white"
+              className="border rounded-lg p-4 shadow-md hover:shadow-xl transition-transform duration-300 hover:scale-105 bg-white flex flex-col justify-between"
             >
               <h3 className="text-xl font-semibold mb-2">{worker.type}</h3>
-              <p className="text-gray-700">{worker.description || "No description available."}</p>
+              <p className="text-gray-700">
+                {worker.description || "No description available."}
+              </p>
             </div>
           ))}
         </div>

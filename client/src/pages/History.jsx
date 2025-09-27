@@ -17,7 +17,7 @@ const History = () => {
         const latestHistory = res.data?.[res.data.length - 1];
 
         if (latestHistory?.content) {
-          const lang = i18n.language;
+          const lang = i18n.language || "en";
           setHistory(latestHistory.content[lang] || t("history_not_available"));
         } else {
           setHistory(t("no_history_found"));
@@ -52,7 +52,9 @@ const History = () => {
       <h2 className="text-3xl font-bold mb-6 text-center text-green-700">
         {t("history")}
       </h2>
-      <p className="text-lg whitespace-pre-line text-gray-800">{history}</p>
+      <p className="text-lg whitespace-pre-line text-gray-800">
+        {history || t("no_history_found")}
+      </p>
     </div>
   );
 };

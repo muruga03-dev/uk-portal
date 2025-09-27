@@ -8,13 +8,19 @@ const AdminLogin = () => {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
+
+  // Normalize API base URL
+  const API_BASE =
+    (process.env.REACT_APP_API_URL || "https://uk-portal-3.onrender.com").replace(
+      /\/+$/,
+      ""
+    );
 
   const handleLogin = async (e) => {
     e.preventDefault();
 
     if (!username || !password) {
-      setErr("Username and Password are required.");
+      setErr("⚠️ Username and Password are required.");
       return;
     }
 
@@ -22,12 +28,25 @@ const AdminLogin = () => {
     setErr("");
 
     try {
-      const res = await axios.post(`${API_BASE}/api/admin/login`, { username, password });
-      localStorage.setItem("adminToken", res.data.token);
-      navigate("/admin-dashboard");
+      const res = await axios.post(`${API_BASE}/api/admin/login`, {
+        username,
+        password,
+      });
+
+      if (res.data?.token) {
+        // Store token securely
+        localStorage.setItem("adminToken", res.data.token);
+        localStorage.setItem("adminUsername", username);
+        navigate("/admin-dashboard");
+      } else {
+        setErr("⚠️ Unexpected response from server.");
+      }
     } catch (error) {
       console.error("Login error:", error.response?.data || error.message);
-      setErr(error.response?.data?.message || "Login failed. Please try again.");
+      setErr(
+        error.response?.data?.message ||
+          "⚠️ Login failed. Please check your credentials."
+      );
     } finally {
       setLoading(false);
     }
@@ -35,8 +54,13 @@ const AdminLogin = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-6">
-      <form onSubmit={handleLogin} className="bg-white p-6 rounded-lg shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-4 text-center text-green-700">Admin Login</h2>
+      <form
+        onSubmit={handleLogin}
+        className="bg-white p-6 rounded-lg shadow-md w-full max-w-md"
+      >
+        <h2 className="text-2xl font-bold mb-4 text-center text-green-700">
+          Admin Login
+        </h2>
 
         {err && <p className="text-red-500 mb-3 text-center">{err}</p>}
 
@@ -61,7 +85,11 @@ const AdminLogin = () => {
         <button
           type="submit"
           disabled={loading}
-          className={`w-full px-4 py-2 rounded text-white ${loading ? "bg-green-400" : "bg-green-700 hover:bg-green-800"} transition`}
+          className={`w-full px-4 py-2 rounded text-white ${
+            loading
+              ? "bg-green-400 cursor-not-allowed"
+              : "bg-green-700 hover:bg-green-800"
+          } transition`}
         >
           {loading ? "Logging in..." : "Login"}
         </button>

@@ -6,12 +6,12 @@ const Events = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Use environment variable for API URL
   const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
+        setLoading(true);
         const res = await axios.get(`${API_BASE}/api/admin/events`);
         setEvents(res.data || []);
       } catch (err) {
@@ -49,14 +49,16 @@ const Events = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {events.map((event) => (
             <div
-              key={event._id}
+              key={event?._id}
               className="border rounded-xl p-4 shadow hover:shadow-xl transition bg-white flex flex-col justify-between"
             >
-              <h3 className="text-xl font-semibold text-gray-800">{event.title}</h3>
-              {event.description && (
+              <h3 className="text-xl font-semibold text-gray-800">
+                {event?.title || "Untitled Event"}
+              </h3>
+              {event?.description && (
                 <p className="text-gray-600 mt-2">{event.description}</p>
               )}
-              {event.date && (
+              {event?.date && (
                 <p className="text-gray-500 text-sm mt-4">
                   📅 {new Date(event.date).toLocaleDateString()}
                 </p>

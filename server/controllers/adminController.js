@@ -12,12 +12,13 @@ import { fileURLToPath } from "url";
 import nodemailer from "nodemailer";
 import fs from "fs";
 
-// ---------------- Multer setup for gallery uploads ----------------
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// ---------------- Multer setup ----------------
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, "../uploads/gallery")),
+  destination: (req, file, cb) =>
+    cb(null, path.join(__dirname, "../uploads/gallery")),
   filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
 });
 
@@ -39,7 +40,10 @@ export const loginAdmin = async (req, res) => {
       { expiresIn: "1d" }
     );
 
-    res.json({ token, admin: { id: admin._id, username: admin.username, role: "admin" } });
+    res.json({
+      token,
+      admin: { id: admin._id, username: admin.username, role: "admin" }
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -57,12 +61,14 @@ export const getAllFamilies = async (req, res) => {
 
 export const createFamily = async (req, res) => {
   try {
-    const { familyId, leaderName, members, address, email, phone, password } = req.body;
+    const { familyId, leaderName, members, address, email, phone, password } =
+      req.body;
     if (!familyId || !leaderName || !email || !password)
       return res.status(400).json({ message: "Missing required fields" });
 
     const existing = await Family.findOne({ familyId });
-    if (existing) return res.status(400).json({ message: "Family already exists" });
+    if (existing)
+      return res.status(400).json({ message: "Family already exists" });
 
     const passwordHash = await bcrypt.hash(password, 10);
     const family = new Family({
@@ -75,7 +81,7 @@ export const createFamily = async (req, res) => {
       passwordHash,
       approved: false,
       taxHistory: [],
-      documents: [],
+      documents: []
     });
 
     await family.save();
@@ -131,6 +137,24 @@ export const updateTax = async (req, res) => {
   }
 };
 
+// ---------------- Bulk Tax ----------------
+export const bulkUpdateTax = async (req, res) => {
+  try {
+    const { familyIds, taxAmount } = req.body;
+    if (!familyIds || !Array.isArray(familyIds))
+      return res.status(400).json({ message: "familyIds must be an array" });
+
+    await Family.updateMany(
+      { _id: { $in: familyIds } },
+      { $push: { taxHistory: { month: new Date().toISOString(), amount: taxAmount, paid: false } } }
+    );
+
+    res.json({ message: `Tax added for ${familyIds.length} families` });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // ---------------- Send notifications ----------------
 export const sendTaxNotifications = async (req, res) => {
   try {
@@ -138,7 +162,7 @@ export const sendTaxNotifications = async (req, res) => {
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
-      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
     });
 
     for (const f of families) {
@@ -146,7 +170,7 @@ export const sendTaxNotifications = async (req, res) => {
         from: process.env.EMAIL_USER,
         to: f.email,
         subject: "Pending Tax Notification",
-        text: `Dear ${f.leaderName}, you have pending tax to pay. Please pay as soon as possible.`,
+        text: `Dear ${f.leaderName}, you have pending tax to pay. Please pay as soon as possible.`
       });
     }
 
@@ -284,7 +308,7 @@ export const uploadGalleryImage = async (req, res) => {
     const galleryItem = new Gallery({
       title: req.body.title || "Untitled",
       description: req.body.description || "",
-      url: `/uploads/gallery/${req.file.filename}`,
+      url: `/uploads/gallery/${req.file.filename}`
     });
 
     await galleryItem.save();
@@ -307,9 +331,10 @@ export const deleteGallery = async (req, res) => {
   try {
     const { id } = req.params;
     const galleryItem = await Gallery.findById(id);
-    if (!galleryItem) return res.status(404).json({ message: "Gallery item not found" });
+    if (!galleryItem)
+      return res.status(404).json({ message: "Gallery item not found" });
 
-    const filePath = path.join(__dirname, "../", galleryItem.url);
+    const filePath = path.join(__dirname, "../uploads/gallery", path.basename(galleryItem.url));
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 
     await Gallery.findByIdAndDelete(id);

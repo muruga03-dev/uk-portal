@@ -8,25 +8,39 @@ const FamilyLogin = () => {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
+
+  // Make sure this points to your deployed backend
+  const API_BASE = process.env.REACT_APP_API_URL || "https://uk-portal-3.onrender.com";
 
   const handleLogin = async (e) => {
     e.preventDefault();
+
     if (!familyId || !password) {
-      setErr("Family ID and Password are required.");
+      setErr("⚠️ Family ID and Password are required.");
       return;
     }
 
     setLoading(true);
     setErr("");
+
     try {
-      const res = await axios.post(`${API_BASE}/api/family/login`, { familyId, password });
-      localStorage.setItem("familyToken", res.data.token);
-      localStorage.setItem("familyId", res.data.family.id);
-      navigate("/family-dashboard");
+      const res = await axios.post(`${API_BASE}/api/family/login`, {
+        familyId,
+        password,
+      });
+
+      // Check if token exists in response
+      if (res.data.token) {
+        localStorage.setItem("familyToken", res.data.token);
+        localStorage.setItem("familyId", res.data.family?.id || familyId);
+        navigate("/family-dashboard");
+      } else {
+        setErr("⚠️ Login failed. Token not received.");
+        console.error("No token in response:", res.data);
+      }
     } catch (error) {
       console.error("Login error:", error.response?.data || error.message);
-      setErr(error.response?.data?.message || "Login failed. Please try again.");
+      setErr(error.response?.data?.message || "⚠️ Login failed. Please check credentials.");
     } finally {
       setLoading(false);
     }
@@ -34,8 +48,13 @@ const FamilyLogin = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-6">
-      <form onSubmit={handleLogin} className="bg-white p-6 rounded-lg shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-4 text-center text-green-700">Family Login</h2>
+      <form
+        onSubmit={handleLogin}
+        className="bg-white p-6 rounded-lg shadow-md w-full max-w-md"
+      >
+        <h2 className="text-2xl font-bold mb-4 text-center text-green-700">
+          Family Login
+        </h2>
 
         {err && <p className="text-red-500 mb-3 text-center">{err}</p>}
 
@@ -59,7 +78,11 @@ const FamilyLogin = () => {
         <button
           type="submit"
           disabled={loading}
-          className={`w-full px-4 py-2 rounded text-white ${loading ? "bg-green-400" : "bg-green-700 hover:bg-green-800"} transition`}
+          className={`w-full px-4 py-2 rounded text-white ${
+            loading
+              ? "bg-green-400 cursor-not-allowed"
+              : "bg-green-700 hover:bg-green-800"
+          } transition`}
         >
           {loading ? "Logging in..." : "Login"}
         </button>

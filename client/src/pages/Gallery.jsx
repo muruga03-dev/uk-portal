@@ -8,17 +8,15 @@ const Gallery = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Use environment variable for API base URL
   const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
   useEffect(() => {
     const fetchGallery = async () => {
       try {
         const res = await axios.get(`${API_BASE}/api/admin/gallery`);
-        // Replace spaces in URLs with %20
-        const safeImages = res.data.map(img => ({
+        const safeImages = (res.data || []).map((img) => ({
           ...img,
-          url: img.url.replace(/ /g, "%20")
+          url: img?.url ? img.url.replace(/ /g, "%20") : "/fallback.png",
         }));
         setImages(safeImages);
       } catch (err) {
@@ -28,6 +26,7 @@ const Gallery = () => {
         setLoading(false);
       }
     };
+
     fetchGallery();
   }, [API_BASE]);
 
@@ -56,30 +55,25 @@ const Gallery = () => {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
           {images.map((img, idx) => {
-            const imageUrl = `${API_BASE}${img.url}`;
+            const imageUrl = `${API_BASE}${img?.url || "/fallback.png"}`;
             return (
               <div
                 key={idx}
                 className="relative group cursor-pointer overflow-hidden rounded-3xl shadow-lg transition-transform duration-500 hover:scale-105 hover:shadow-2xl"
-                style={{ aspectRatio: "1 / 1" }} // square container
+                style={{ aspectRatio: "1 / 1" }}
                 onClick={() => setSelectedImage(imageUrl)}
               >
-                {/* Image */}
                 <img
                   src={imageUrl}
-                  alt={img.title || `Gallery ${idx}`}
+                  alt={img?.title || `Gallery ${idx + 1}`}
                   className="w-full h-full object-cover rounded-3xl transition-transform duration-500 group-hover:scale-110 filter brightness-90 group-hover:brightness-100"
                   onError={(e) => (e.target.src = "/fallback.png")}
                 />
-
-                {/* Hover overlay */}
                 <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
                   <h3 className="text-white text-center font-bold text-lg px-2">
-                    {img.title || "View Image"}
+                    {img?.title || "View Image"}
                   </h3>
                 </div>
-
-                {/* Animated border glow */}
                 <div className="absolute inset-0 rounded-3xl border-2 border-green-400 border-dashed opacity-0 group-hover:opacity-100 animate-pulse"></div>
               </div>
             );
@@ -87,7 +81,6 @@ const Gallery = () => {
         </div>
       )}
 
-      {/* Modal */}
       {selectedImage && (
         <GalleryModal image={selectedImage} onClose={() => setSelectedImage(null)} />
       )}

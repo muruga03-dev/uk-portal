@@ -6,28 +6,38 @@ const FamilyDashboard = () => {
   const [file, setFile] = useState(null);
   const [msg, setMsg] = useState("");
 
-  const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
+  // Use deployed backend URL
+  const API_BASE =
+    process.env.REACT_APP_API_URL || "https://uk-portal-3.onrender.com";
   const token = localStorage.getItem("familyToken");
 
   // Fetch family profile
   useEffect(() => {
     const fetchFamily = async () => {
+      if (!token) {
+        setMsg("⚠️ No authentication token found. Please login.");
+        return;
+      }
       try {
         const res = await axios.get(`${API_BASE}/api/family/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setFamily(res.data);
       } catch (err) {
-        console.error("Error fetching family profile:", err);
-        setMsg("⚠️ Failed to load family data");
+        console.error("Error fetching family profile:", err.response || err);
+        setMsg(
+          err.response?.data?.message ||
+            "⚠️ Failed to load family data. Please login again."
+        );
       }
     };
-    if (token) fetchFamily();
+    fetchFamily();
   }, [token, API_BASE]);
 
   // Handle document upload
   const handleUpload = async () => {
     if (!file) return setMsg("⚠️ Please select a file");
+
     const formData = new FormData();
     formData.append("document", file);
 
@@ -42,23 +52,27 @@ const FamilyDashboard = () => {
       setFile(null);
       setMsg("✅ File uploaded successfully");
     } catch (err) {
-      console.error("Upload error:", err);
-      setMsg("⚠️ Upload failed");
+      console.error("Upload error:", err.response || err);
+      setMsg(err.response?.data?.message || "⚠️ Upload failed");
     }
   };
 
   // Handle document delete
   const handleDelete = async (docId) => {
-    if (!window.confirm("Are you sure you want to delete this document?")) return;
+    if (!window.confirm("Are you sure you want to delete this document?"))
+      return;
     try {
-      const res = await axios.delete(`${API_BASE}/api/family/document/${docId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await axios.delete(
+        `${API_BASE}/api/family/document/${docId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       if (res.data.family) setFamily(res.data.family);
       setMsg("✅ Document deleted successfully");
     } catch (err) {
-      console.error("Delete error:", err);
-      setMsg("⚠️ Failed to delete document");
+      console.error("Delete error:", err.response || err);
+      setMsg(err.response?.data?.message || "⚠️ Failed to delete document");
     }
   };
 
@@ -122,7 +136,11 @@ const FamilyDashboard = () => {
                 <tr key={tax._id} className="text-center">
                   <td className="p-2 border">{tax.month}</td>
                   <td className="p-2 border">{tax.amount}</td>
-                  <td className={`p-2 border ${tax.paid ? "text-green-600" : "text-red-600"}`}>
+                  <td
+                    className={`p-2 border ${
+                      tax.paid ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
                     {tax.paid ? "Paid" : "Pending"}
                   </td>
                 </tr>
@@ -157,10 +175,15 @@ const FamilyDashboard = () => {
         <ul className="list-disc pl-6">
           {family.documents?.length > 0 ? (
             family.documents.map((doc) => (
-              <li key={doc._id} className="flex items-center justify-between mb-1">
+              <li
+                key={doc._id}
+                className="flex items-center justify-between mb-1"
+              >
                 <div>
                   <span className="font-medium">{doc.filename}</span>{" "}
-                  <span className="text-gray-500 text-sm">({new Date(doc.uploadedAt).toLocaleDateString()})</span>
+                  <span className="text-gray-500 text-sm">
+                    ({new Date(doc.uploadedAt).toLocaleDateString()})
+                  </span>
                 </div>
                 <div className="space-x-2">
                   <a

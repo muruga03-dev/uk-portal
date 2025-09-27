@@ -4,6 +4,7 @@ import cors from "cors";
 import mongoose from "mongoose";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
 
 // Route imports
 import adminRoutes from "./routes/adminRoutes.js";
@@ -21,6 +22,11 @@ app.use(express.json());
 // Setup __dirname in ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const galleryPath = path.join(__dirname, "uploads/gallery");
+if (!fs.existsSync(galleryPath)) {
+  fs.mkdirSync(galleryPath, { recursive: true });
+}
 
 // ✅ Serve static uploads (images, documents, gallery files)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));

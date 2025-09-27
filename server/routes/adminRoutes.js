@@ -20,7 +20,7 @@ import {
   createHistory,
   updateHistory,
   deleteHistory,
-  uploadGallery,
+  uploadGallery,        // multer middleware
   uploadGalleryImage,
   getGallery,
   deleteGallery
@@ -28,10 +28,10 @@ import {
 
 const router = express.Router();
 
-// Admin login
+// ---------------- Admin login ----------------
 router.post("/login", loginAdmin);
 
-// Families
+// ---------------- Families ----------------
 router.get("/families", getAllFamilies);
 router.post("/families", createFamily);
 router.post("/families/approve", approveFamily);
@@ -40,26 +40,27 @@ router.post("/families/tax", updateTax);
 router.post("/families/tax/bulk", bulkUpdateTax);
 router.post("/families/notify", sendTaxNotifications);
 
-// Events
+// ---------------- Events ----------------
 router.get("/events", getEvents);
 router.post("/events", createEvent);
 router.put("/events/:id", updateEvent);
 router.delete("/events/:id", deleteEvent);
 
-// Workers
+// ---------------- Workers ----------------
 router.get("/workers", getWorkers);
 router.post("/workers", createWorker);
 router.put("/workers/:id", updateWorker);
 router.delete("/workers/:id", deleteWorker);
 
-// History
+// ---------------- History ----------------
 router.get("/history", getHistory);
 router.post("/history", createHistory);
 router.put("/history/:id", updateHistory);
 router.delete("/history/:id", deleteHistory);
 
-// Gallery
-router.post("/gallery/upload", uploadGallery.single("file"), uploadGalleryImage);
+// ---------------- Gallery ----------------
+// Use `uploadGallery.single("image")` because your frontend sends 'image' field
+router.post("/gallery/upload", uploadGallery.single("image"), uploadGalleryImage);
 router.get("/gallery", getGallery);
 router.delete("/gallery/:id", deleteGallery);
 

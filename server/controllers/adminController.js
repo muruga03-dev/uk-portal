@@ -16,9 +16,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ---------------- Multer setup ----------------
+const galleryDir = path.join(__dirname, "../uploads/gallery");
+if (!fs.existsSync(galleryDir)) fs.mkdirSync(galleryDir, { recursive: true });
+
 const storage = multer.diskStorage({
-  destination: (req, file, cb) =>
-    cb(null, path.join(__dirname, "../uploads/gallery")),
+  destination: (req, file, cb) => cb(null, galleryDir),
   filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
 });
 
@@ -40,10 +42,7 @@ export const loginAdmin = async (req, res) => {
       { expiresIn: "1d" }
     );
 
-    res.json({
-      token,
-      admin: { id: admin._id, username: admin.username, role: "admin" }
-    });
+    res.json({ token, admin: { id: admin._id, username: admin.username, role: "admin" } });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -61,27 +60,16 @@ export const getAllFamilies = async (req, res) => {
 
 export const createFamily = async (req, res) => {
   try {
-    const { familyId, leaderName, members, address, email, phone, password } =
-      req.body;
+    const { familyId, leaderName, members, address, email, phone, password } = req.body;
     if (!familyId || !leaderName || !email || !password)
       return res.status(400).json({ message: "Missing required fields" });
 
     const existing = await Family.findOne({ familyId });
-    if (existing)
-      return res.status(400).json({ message: "Family already exists" });
+    if (existing) return res.status(400).json({ message: "Family already exists" });
 
     const passwordHash = await bcrypt.hash(password, 10);
     const family = new Family({
-      familyId,
-      leaderName,
-      members: members || [],
-      address: address || "",
-      email,
-      phone: phone || "",
-      passwordHash,
-      approved: false,
-      taxHistory: [],
-      documents: []
+      familyId, leaderName, members: members || [], address: address || "", email, phone: phone || "", passwordHash, approved: false, taxHistory: [], documents: []
     });
 
     await family.save();
@@ -96,7 +84,6 @@ export const approveFamily = async (req, res) => {
     const { id } = req.body;
     const family = await Family.findById(id);
     if (!family) return res.status(404).json({ message: "Family not found" });
-
     family.approved = true;
     await family.save();
     res.json({ message: "Family approved", family });
@@ -110,7 +97,6 @@ export const rejectFamily = async (req, res) => {
     const { id } = req.body;
     const family = await Family.findById(id);
     if (!family) return res.status(404).json({ message: "Family not found" });
-
     family.approved = false;
     await family.save();
     res.json({ message: "Family rejected", family });
@@ -119,14 +105,14 @@ export const rejectFamily = async (req, res) => {
   }
 };
 
-// ---------------- Update Tax ----------------
+// ---------------- Tax ----------------
 export const updateTax = async (req, res) => {
   try {
     const { familyId, month, amount } = req.body;
     const family = await Family.findById(familyId);
     if (!family) return res.status(404).json({ message: "Family not found" });
 
-    const taxEntry = family.taxHistory.find((t) => t.month === month);
+    const taxEntry = family.taxHistory.find(t => t.month === month);
     if (taxEntry) taxEntry.amount = amount;
     else family.taxHistory.push({ month, amount, paid: false });
 
@@ -137,7 +123,6 @@ export const updateTax = async (req, res) => {
   }
 };
 
-// ---------------- Bulk Tax ----------------
 export const bulkUpdateTax = async (req, res) => {
   try {
     const { familyIds, taxAmount } = req.body;
@@ -148,18 +133,16 @@ export const bulkUpdateTax = async (req, res) => {
       { _id: { $in: familyIds } },
       { $push: { taxHistory: { month: new Date().toISOString(), amount: taxAmount, paid: false } } }
     );
-
     res.json({ message: `Tax added for ${familyIds.length} families` });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// ---------------- Send notifications ----------------
+// ---------------- Notifications ----------------
 export const sendTaxNotifications = async (req, res) => {
   try {
     const families = await Family.find({ "taxHistory.paid": false });
-
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
@@ -173,132 +156,37 @@ export const sendTaxNotifications = async (req, res) => {
         text: `Dear ${f.leaderName}, you have pending tax to pay. Please pay as soon as possible.`
       });
     }
-
     res.json({ message: "Notifications sent", count: families.length });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// ---------------- Events CRUD ----------------
+// ---------------- Events ----------------
 export const getEvents = async (req, res) => {
-  try {
-    const events = await Event.find();
-    res.json(events);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+  try { res.json(await Event.find()); } catch (err) { res.status(500).json({ message: err.message }); }
 };
-
 export const createEvent = async (req, res) => {
-  try {
-    const event = new Event(req.body);
-    await event.save();
-    res.json({ message: "Event created", event });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+  try { const event = new Event(req.body); await event.save(); res.json({ message: "Event created", event }); } catch (err) { res.status(500).json({ message: err.message }); }
 };
-
 export const updateEvent = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const event = await Event.findByIdAndUpdate(id, req.body, { new: true });
-    res.json({ message: "Event updated", event });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+  try { const { id } = req.params; const event = await Event.findByIdAndUpdate(id, req.body, { new: true }); res.json({ message: "Event updated", event }); } catch (err) { res.status(500).json({ message: err.message }); }
 };
-
 export const deleteEvent = async (req, res) => {
-  try {
-    const { id } = req.params;
-    await Event.findByIdAndDelete(id);
-    res.json({ message: "Event deleted" });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+  try { const { id } = req.params; await Event.findByIdAndDelete(id); res.json({ message: "Event deleted" }); } catch (err) { res.status(500).json({ message: err.message }); }
 };
 
-// ---------------- Workers CRUD ----------------
-export const getWorkers = async (req, res) => {
-  try {
-    const workers = await Worker.find();
-    res.json(workers);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
+// ---------------- Workers ----------------
+export const getWorkers = async (req, res) => { try { res.json(await Worker.find()); } catch (err) { res.status(500).json({ message: err.message }); } };
+export const createWorker = async (req, res) => { try { const worker = new Worker(req.body); await worker.save(); res.json({ message: "Worker created", worker }); } catch (err) { res.status(500).json({ message: err.message }); } };
+export const updateWorker = async (req, res) => { try { const { id } = req.params; const worker = await Worker.findByIdAndUpdate(id, req.body, { new: true }); res.json({ message: "Worker updated", worker }); } catch (err) { res.status(500).json({ message: err.message }); } };
+export const deleteWorker = async (req, res) => { try { const { id } = req.params; await Worker.findByIdAndDelete(id); res.json({ message: "Worker deleted" }); } catch (err) { res.status(500).json({ message: err.message }); } };
 
-export const createWorker = async (req, res) => {
-  try {
-    const worker = new Worker(req.body);
-    await worker.save();
-    res.json({ message: "Worker created", worker });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-export const updateWorker = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const worker = await Worker.findByIdAndUpdate(id, req.body, { new: true });
-    res.json({ message: "Worker updated", worker });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-export const deleteWorker = async (req, res) => {
-  try {
-    const { id } = req.params;
-    await Worker.findByIdAndDelete(id);
-    res.json({ message: "Worker deleted" });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// ---------------- History CRUD ----------------
-export const getHistory = async (req, res) => {
-  try {
-    const history = await History.find();
-    res.json(history);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-export const createHistory = async (req, res) => {
-  try {
-    const entry = new History(req.body);
-    await entry.save();
-    res.json({ message: "History entry created", entry });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-export const updateHistory = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const entry = await History.findByIdAndUpdate(id, req.body, { new: true });
-    res.json({ message: "History updated", entry });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-export const deleteHistory = async (req, res) => {
-  try {
-    const { id } = req.params;
-    await History.findByIdAndDelete(id);
-    res.json({ message: "History entry deleted" });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
+// ---------------- History ----------------
+export const getHistory = async (req, res) => { try { res.json(await History.find()); } catch (err) { res.status(500).json({ message: err.message }); } };
+export const createHistory = async (req, res) => { try { const entry = new History(req.body); await entry.save(); res.json({ message: "History entry created", entry }); } catch (err) { res.status(500).json({ message: err.message }); } };
+export const updateHistory = async (req, res) => { try { const { id } = req.params; const entry = await History.findByIdAndUpdate(id, req.body, { new: true }); res.json({ message: "History updated", entry }); } catch (err) { res.status(500).json({ message: err.message }); } };
+export const deleteHistory = async (req, res) => { try { const { id } = req.params; await History.findByIdAndDelete(id); res.json({ message: "History entry deleted" }); } catch (err) { res.status(500).json({ message: err.message }); } };
 
 // ---------------- Gallery ----------------
 export const uploadGalleryImage = async (req, res) => {
@@ -314,25 +202,20 @@ export const uploadGalleryImage = async (req, res) => {
     await galleryItem.save();
     res.json({ message: "Gallery uploaded", galleryItem });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Gallery upload error:", err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
 export const getGallery = async (req, res) => {
-  try {
-    const gallery = await Gallery.find();
-    res.json(gallery);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+  try { res.json(await Gallery.find()); } catch (err) { res.status(500).json({ message: err.message }); }
 };
 
 export const deleteGallery = async (req, res) => {
   try {
     const { id } = req.params;
     const galleryItem = await Gallery.findById(id);
-    if (!galleryItem)
-      return res.status(404).json({ message: "Gallery item not found" });
+    if (!galleryItem) return res.status(404).json({ message: "Gallery item not found" });
 
     const filePath = path.join(__dirname, "../uploads/gallery", path.basename(galleryItem.url));
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
@@ -340,6 +223,7 @@ export const deleteGallery = async (req, res) => {
     await Gallery.findByIdAndDelete(id);
     res.json({ message: "Gallery item deleted" });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Gallery deletion error:", err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };

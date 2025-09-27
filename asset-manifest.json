@@ -1,14 +1,14 @@
 {
   "files": {
-    "main.css": "/uk-portal/static/css/main.619a2e79.css",
-    "main.js": "/uk-portal/static/js/main.f00f15ef.js",
+    "main.css": "/uk-portal/static/css/main.783c00e7.css",
+    "main.js": "/uk-portal/static/js/main.f8387e5e.js",
     "static/media/uk logo.jpg": "/uk-portal/static/media/uk logo.20397fd4ec7e4019aafe.jpg",
     "index.html": "/uk-portal/index.html",
-    "main.619a2e79.css.map": "/uk-portal/static/css/main.619a2e79.css.map",
-    "main.f00f15ef.js.map": "/uk-portal/static/js/main.f00f15ef.js.map"
+    "main.783c00e7.css.map": "/uk-portal/static/css/main.783c00e7.css.map",
+    "main.f8387e5e.js.map": "/uk-portal/static/js/main.f8387e5e.js.map"
   },
   "entrypoints": [
-    "static/css/main.619a2e79.css",
-    "static/js/main.f00f15ef.js"
+    "static/css/main.783c00e7.css",
+    "static/js/main.f8387e5e.js"
   ]
 }

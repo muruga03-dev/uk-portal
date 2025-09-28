@@ -20,10 +20,10 @@ import {
   createHistory,
   updateHistory,
   deleteHistory,
-  uploadGallery,        // multer middleware
-  uploadGalleryImage,
+  uploadGallery,       // Multer middleware: temp disk
+  uploadGalleryImage,  // Controller: uploads to Cloudinary
   getGallery,
-  deleteGallery
+  deleteGallery,
 } from "../controllers/adminController.js";
 
 const router = express.Router();
@@ -58,10 +58,12 @@ router.post("/history", createHistory);
 router.put("/history/:id", updateHistory);
 router.delete("/history/:id", deleteHistory);
 
-// ---------------- Gallery ----------------
-// Use `uploadGallery.single("image")` because your frontend sends 'image' field
+// ---------------- Gallery (Cloudinary) ----------------
+// ✅ Upload route — uses multer then Cloudinary
 router.post("/gallery/upload", uploadGallery.single("image"), uploadGalleryImage);
+// ✅ Get all images
 router.get("/gallery", getGallery);
+// ✅ Delete image by ID
 router.delete("/gallery/:id", deleteGallery);
 
 export default router;

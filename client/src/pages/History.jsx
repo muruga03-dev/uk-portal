@@ -50,7 +50,7 @@ const History = () => {
   return (
     <div className="p-8 max-w-4xl mx-auto bg-white shadow-md rounded-lg">
       <h2 className="text-3xl font-bold mb-6 text-center text-green-700">
-        {t("history")}
+        📜 {t("history")}
       </h2>
       <p className="text-lg whitespace-pre-line text-gray-800">
         {history || t("no_history_found")}

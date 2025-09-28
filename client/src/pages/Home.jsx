@@ -29,14 +29,14 @@ const Home = () => {
             className="hero-button"
             onClick={() => scrollToSection(aboutRef)}
           >
-            🌿 Explore More
+            👇 Explore More
           </button>
         </div>
       </section>
 
       {/* About Section */}
       <section className="about-section" ref={aboutRef}>
-        <h2 className="section-title">🌸 {t("about")}</h2>
+        <h2 className="section-title"> ⚔ {t("about")}</h2>
         <p className="section-text">{t("value")}</p>
         <button
           className="hero-button mt-4"

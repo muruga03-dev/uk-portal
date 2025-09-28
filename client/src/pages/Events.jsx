@@ -40,7 +40,7 @@ const Events = () => {
   return (
     <div className="p-8 max-w-5xl mx-auto">
       <h2 className="text-3xl font-bold mb-6 text-center text-green-700">
-        🌿 Village Events
+        🎉 Village Events
       </h2>
 
       {events.length === 0 ? (

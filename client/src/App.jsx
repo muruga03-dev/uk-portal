@@ -1,6 +1,6 @@
-// Placeholder for client/src/App.jsx
+// client/src/App.jsx
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { HashRouter as Router, Routes, Route } from "react-router-dom"; // ✅ HashRouter
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import History from "./pages/History";

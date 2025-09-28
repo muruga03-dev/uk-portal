@@ -6,6 +6,7 @@ import {
   getMyFamily,
   uploadDocument,
   downloadDocument,
+  deleteDocument,
 } from "../controllers/familyController.js";
 import multer from "multer";
 import path from "path";
@@ -13,17 +14,18 @@ import { fileURLToPath } from "url";
 
 const router = express.Router();
 
-// ---------------- Multer setup for document uploads ----------------
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// ---------------- Multer setup for document uploads ----------------
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, path.join(__dirname, "../uploads/documents"));
   },
   filename: (req, file, cb) => {
-    // Ensure unique filename
-    cb(null, `${Date.now()}-${file.originalname}`);
+    // Ensure safe + unique filename
+    const safeName = file.originalname.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_\.-]/g, "");
+    cb(null, `${Date.now()}-${safeName}`);
   },
 });
 
@@ -39,10 +41,13 @@ router.use(protectFamily);
 // Get logged-in family profile
 router.get("/me", getMyFamily);
 
-// Upload document
+// Upload a document (field: "document")
 router.post("/upload", upload.single("document"), uploadDocument);
 
-// Download document by filename
+// Download a document by filename
 router.get("/download/:filename", downloadDocument);
+
+// Delete a document by filename
+router.delete("/delete/:filename", deleteDocument);
 
 export default router;

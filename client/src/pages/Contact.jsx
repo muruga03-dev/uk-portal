@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { useTranslation } from "react-i18next";
 
 const Contact = () => {
+  const { t } = useTranslation();
   const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [msg, setMsg] = useState({ text: "", type: "" }); // type: "success" | "error"
   const [loading, setLoading] = useState(false);
@@ -34,7 +36,7 @@ const Contact = () => {
 
   return (
     <div className="p-8 max-w-md mx-auto bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-4 text-center text-green-700">Contact Us</h2>
+      <h2 className="text-2xl font-bold mb-4 text-center text-green-700">{t("contact us")}</h2>
 
       {msg.text && (
         <p

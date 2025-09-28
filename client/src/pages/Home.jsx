@@ -65,7 +65,7 @@ const Home = () => {
           <div className="step-card">
             <h3 className="step-title">🎉 {t("exploreEvents")}</h3>
             <p className="step-text">
-              {t("exploreEvents")}
+            
               {t("exploreEventsDetails")}
             </p>
           </div>

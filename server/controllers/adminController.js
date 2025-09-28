@@ -41,17 +41,26 @@ export const loginAdmin = async (req, res) => {
     const { username, password } = req.body;
     const admin = await Admin.findOne({ username });
     if (!admin) return res.status(401).json({ message: "Invalid credentials" });
+
     const match = await bcrypt.compare(password, admin.passwordHash);
     if (!match) return res.status(401).json({ message: "Invalid credentials" });
 
-    const token = jwt.sign( { id: admin._id, role: "admin" }, process.env.JWT_SECRET || "secretkey", { expiresIn: "1d" });
-    res.json({ token, admin: { id: admin._id, username: admin.username, role: "admin" } });
+    const token = jwt.sign(
+      { id: admin._id, role: "admin" },
+      process.env.JWT_SECRET || "secretkey",
+      { expiresIn: "1d" }
+    );
+
+    res.json({
+      token,
+      admin: { id: admin._id, username: admin.username, role: "admin" },
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// ---------------- Families ----------------
+// ---------------- Families CRUD ----------------
 export const getAllFamilies = async (req, res) => {
   try {
     const families = await Family.find().select("-passwordHash");
@@ -63,12 +72,17 @@ export const getAllFamilies = async (req, res) => {
 
 export const createFamily = async (req, res) => {
   try {
-    const { familyId, leaderName, members, address, email, phone, password } = req.body;
+    const { familyId, leaderName, members, address, email, phone, password } =
+      req.body;
     if (!familyId || !leaderName || !email || !password)
       return res.status(400).json({ message: "Missing required fields" });
+
     const existing = await Family.findOne({ familyId });
-    if (existing) return res.status(400).json({ message: "Family already exists" });
+    if (existing)
+      return res.status(400).json({ message: "Family already exists" });
+
     const passwordHash = await bcrypt.hash(password, 10);
+
     const family = new Family({
       familyId,
       leaderName,
@@ -81,6 +95,7 @@ export const createFamily = async (req, res) => {
       taxHistory: [],
       documents: [],
     });
+
     await family.save();
     res.json({ message: "Family created", family });
   } catch (err) {
@@ -120,9 +135,14 @@ export const updateTax = async (req, res) => {
     const { familyId, month, amount } = req.body;
     const family = await Family.findById(familyId);
     if (!family) return res.status(404).json({ message: "Family not found" });
+
     const taxEntry = family.taxHistory.find((t) => t.month === month);
-    if (taxEntry) taxEntry.amount = amount;
-    else family.taxHistory.push({ month, amount, paid: false });
+    if (taxEntry) {
+      taxEntry.amount = amount;
+    } else {
+      family.taxHistory.push({ month, amount, paid: false });
+    }
+
     await family.save();
     res.json({ message: "Tax updated", family });
   } catch (err) {
@@ -130,15 +150,62 @@ export const updateTax = async (req, res) => {
   }
 };
 
+// Mark Tax as Paid
+export const markTaxPaid = async (req, res) => {
+  try {
+    const { familyId, month } = req.body;
+    const family = await Family.findById(familyId);
+    if (!family) return res.status(404).json({ message: "Family not found" });
+
+    const taxEntry = family.taxHistory.find((t) => t.month === month);
+    if (!taxEntry)
+      return res.status(404).json({ message: "Tax entry not found" });
+
+    taxEntry.paid = true;
+    await family.save();
+
+    res.json({ message: "Tax marked as paid", family });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Get Total Paid Tax for a Month
+export const getTotalTaxByMonth = async (req, res) => {
+  try {
+    const { month } = req.params;
+    const families = await Family.find({ "taxHistory.month": month });
+
+    let total = 0;
+    families.forEach((family) => {
+      const entry = family.taxHistory.find(
+        (t) => t.month === month && t.paid === true
+      );
+      if (entry) total += entry.amount;
+    });
+
+    res.json({ month, total });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Bulk Add Tax
 export const bulkUpdateTax = async (req, res) => {
   try {
-    const { familyIds, taxAmount } = req.body;
+    const { familyIds, taxAmount, month } = req.body;
     if (!familyIds || !Array.isArray(familyIds))
       return res.status(400).json({ message: "familyIds must be an array" });
+
     await Family.updateMany(
       { _id: { $in: familyIds } },
-      { $push: { taxHistory: { month: new Date().toISOString(), amount: taxAmount, paid: false }, }, }
+      {
+        $push: {
+          taxHistory: { month, amount: taxAmount, paid: false },
+        },
+      }
     );
+
     res.json({ message: `Tax added for ${familyIds.length} families` });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -149,10 +216,12 @@ export const bulkUpdateTax = async (req, res) => {
 export const sendTaxNotifications = async (req, res) => {
   try {
     const families = await Family.find({ "taxHistory.paid": false });
+
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
     });
+
     for (const f of families) {
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
@@ -161,13 +230,14 @@ export const sendTaxNotifications = async (req, res) => {
         text: `Dear ${f.leaderName}, you have pending tax to pay. Please pay as soon as possible.`,
       });
     }
+
     res.json({ message: "Notifications sent", count: families.length });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// ---------------- Events ----------------
+// ---------------- Events CRUD ----------------
 export const getEvents = async (req, res) => {
   try {
     res.json(await Event.find());
@@ -206,7 +276,7 @@ export const deleteEvent = async (req, res) => {
   }
 };
 
-// ---------------- Workers ----------------
+// ---------------- Workers CRUD ----------------
 export const getWorkers = async (req, res) => {
   try {
     res.json(await Worker.find());
@@ -217,7 +287,13 @@ export const getWorkers = async (req, res) => {
 
 export const createWorker = async (req, res) => {
   try {
-    const worker = new Worker(req.body);
+    const { name, workType, description } = req.body;
+    if (!name || !workType)
+      return res
+        .status(400)
+        .json({ message: "Worker name and type are required" });
+
+    const worker = new Worker({ name, workType, description });
     await worker.save();
     res.json({ message: "Worker created", worker });
   } catch (err) {
@@ -245,7 +321,7 @@ export const deleteWorker = async (req, res) => {
   }
 };
 
-// ---------------- History ----------------
+// ---------------- History CRUD ----------------
 export const getHistory = async (req, res) => {
   try {
     res.json(await History.find());
@@ -288,21 +364,26 @@ export const deleteHistory = async (req, res) => {
 export const uploadGalleryImage = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
     // Upload to Cloudinary
     const result = await cloudinary.uploader.upload(req.file.path, {
       folder: "uk-portal/gallery",
       use_filename: true,
       unique_filename: false,
+      resource_type: "auto",
     });
+
     // Save to MongoDB
     const galleryItem = new Gallery({
       title: req.body.title || "Untitled",
       description: req.body.description || "",
-      url: result.secure_url, // ✅ Cloudinary URL
+      url: result.secure_url,
     });
     await galleryItem.save();
+
     // Delete temp file
     fs.unlinkSync(req.file.path);
+
     res.json({ message: "Gallery uploaded", galleryItem });
   } catch (err) {
     console.error("Gallery upload error:", err);
@@ -322,14 +403,19 @@ export const deleteGallery = async (req, res) => {
   try {
     const { id } = req.params;
     const galleryItem = await Gallery.findById(id);
-    if (!galleryItem) return res.status(404).json({ message: "Gallery item not found" });
+    if (!galleryItem)
+      return res.status(404).json({ message: "Gallery item not found" });
+
     // Extract public_id for Cloudinary
     const parts = galleryItem.url.split("/");
-    const publicId = parts.slice(-2).join("/").split(".")[0]; // e.g. uk-portal/gallery/filename
+    const publicId = parts.slice(-2).join("/").split(".")[0];
+
     // Delete from Cloudinary
     await cloudinary.uploader.destroy(publicId);
+
     // Delete from DB
     await Gallery.findByIdAndDelete(id);
+
     res.json({ message: "Gallery item deleted" });
   } catch (err) {
     console.error("Gallery deletion error:", err);

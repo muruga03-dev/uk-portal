@@ -15,35 +15,39 @@ dotenv.config();
 
 const app = express();
 
-// Middleware
+// ---------------- Middleware ----------------
 app.use(cors());
 app.use(express.json());
 
-// Setup __dirname for ES Modules
+// ---------------- Setup __dirname for ES Modules ----------------
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Ensure uploads directories exist
-const galleryPath = path.join(__dirname, "uploads/gallery");
-const tempPath = path.join(__dirname, "uploads/temp");
-[galleryPath, tempPath].forEach((dir) => {
+// ---------------- Ensure uploads directories exist ----------------
+const uploadDirs = [
+  path.join(__dirname, "uploads/gallery"),
+  path.join(__dirname, "uploads/temp"),
+  path.join(__dirname, "uploads/documents"), // added for family documents
+];
+
+uploadDirs.forEach((dir) => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
-// Serve static files
+// ---------------- Serve static files ----------------
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// API Routes
+// ---------------- API Routes ----------------
 app.use("/api/admin", adminRoutes);
 app.use("/api/family", familyRoutes);
 app.use("/api/public", publicRoutes);
 
-// Health check
+// ---------------- Health check ----------------
 app.get("/", (req, res) => {
   res.send("✅ API is running...");
 });
 
-// Global error handler
+// ---------------- Global error handler ----------------
 app.use((err, req, res, next) => {
   console.error("❌ Unhandled error:", err);
   res.status(500).json({
@@ -52,7 +56,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server + MongoDB connection
+// ---------------- Start server + MongoDB connection ----------------
 const startServer = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI, {

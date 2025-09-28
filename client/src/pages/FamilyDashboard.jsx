@@ -5,10 +5,9 @@ const FamilyDashboard = () => {
   const [family, setFamily] = useState(null);
   const [file, setFile] = useState(null);
   const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // Use deployed backend URL
-  const API_BASE =
-    process.env.REACT_APP_API_URL || "https://uk-portal-3.onrender.com";
+  const API_BASE = process.env.REACT_APP_API_URL || "https://uk-portal-3.onrender.com";
   const token = localStorage.getItem("familyToken");
 
   // Fetch family profile
@@ -18,6 +17,7 @@ const FamilyDashboard = () => {
         setMsg("⚠️ No authentication token found. Please login.");
         return;
       }
+      setLoading(true);
       try {
         const res = await axios.get(`${API_BASE}/api/family/me`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -25,10 +25,9 @@ const FamilyDashboard = () => {
         setFamily(res.data);
       } catch (err) {
         console.error("Error fetching family profile:", err.response || err);
-        setMsg(
-          err.response?.data?.message ||
-            "⚠️ Failed to load family data. Please login again."
-        );
+        setMsg(err.response?.data?.message || "⚠️ Failed to load family data. Please login again.");
+      } finally {
+        setLoading(false);
       }
     };
     fetchFamily();
@@ -37,7 +36,7 @@ const FamilyDashboard = () => {
   // Handle document upload
   const handleUpload = async () => {
     if (!file) return setMsg("⚠️ Please select a file");
-
+    setLoading(true);
     const formData = new FormData();
     formData.append("document", file);
 
@@ -54,25 +53,26 @@ const FamilyDashboard = () => {
     } catch (err) {
       console.error("Upload error:", err.response || err);
       setMsg(err.response?.data?.message || "⚠️ Upload failed");
+    } finally {
+      setLoading(false);
     }
   };
 
   // Handle document delete
   const handleDelete = async (docId) => {
-    if (!window.confirm("Are you sure you want to delete this document?"))
-      return;
+    if (!window.confirm("Are you sure you want to delete this document?")) return;
+    setLoading(true);
     try {
-      const res = await axios.delete(
-        `${API_BASE}/api/family/document/${docId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const res = await axios.delete(`${API_BASE}/api/family/document/${docId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.data.family) setFamily(res.data.family);
       setMsg("✅ Document deleted successfully");
     } catch (err) {
       console.error("Delete error:", err.response || err);
       setMsg(err.response?.data?.message || "⚠️ Failed to delete document");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -85,9 +85,10 @@ const FamilyDashboard = () => {
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <h2 className="text-3xl font-bold text-center mb-6 text-green-700">
-        🏠 Family Dashboard
-      </h2>
+      <h2 className="text-3xl font-bold text-center mb-6 text-green-700">🏠 Family Dashboard</h2>
+
+      {loading && <p className="text-center text-blue-600 font-semibold">Processing...</p>}
+      {msg && <p className="text-center text-yellow-700 font-medium">{msg}</p>}
 
       {/* Family Info */}
       <table className="w-full border border-gray-200 rounded-lg overflow-hidden">
@@ -136,11 +137,7 @@ const FamilyDashboard = () => {
                 <tr key={tax._id} className="text-center">
                   <td className="p-2 border">{tax.month}</td>
                   <td className="p-2 border">{tax.amount}</td>
-                  <td
-                    className={`p-2 border ${
-                      tax.paid ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
+                  <td className={`p-2 border ${tax.paid ? "text-green-600" : "text-red-600"}`}>
                     {tax.paid ? "Paid" : "Pending"}
                   </td>
                 </tr>
@@ -155,18 +152,19 @@ const FamilyDashboard = () => {
       {/* Document Upload */}
       <div className="border p-4 rounded">
         <h3 className="font-semibold mb-2 text-lg">Upload Document</h3>
-        <input
-          type="file"
-          onChange={(e) => setFile(e.target.files[0])}
-          className="border border-gray-300 rounded px-2 py-1"
-        />
-        <button
-          onClick={handleUpload}
-          className="ml-2 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
-        >
-          Upload
-        </button>
-        {msg && <p className="mt-2 text-green-700">{msg}</p>}
+        <div className="flex gap-2 flex-wrap">
+          <input
+            type="file"
+            onChange={(e) => setFile(e.target.files[0])}
+            className="border border-gray-300 rounded px-2 py-1"
+          />
+          <button
+            onClick={handleUpload}
+            className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
+          >
+            Upload
+          </button>
+        </div>
       </div>
 
       {/* Uploaded Documents */}
@@ -175,10 +173,7 @@ const FamilyDashboard = () => {
         <ul className="list-disc pl-6">
           {family.documents?.length > 0 ? (
             family.documents.map((doc) => (
-              <li
-                key={doc._id}
-                className="flex items-center justify-between mb-1"
-              >
+              <li key={doc._id} className="flex items-center justify-between mb-1">
                 <div>
                   <span className="font-medium">{doc.filename}</span>{" "}
                   <span className="text-gray-500 text-sm">

@@ -1,6 +1,7 @@
 import express from "express";
 import {
   loginAdmin,
+  // Families
   getAllFamilies,
   createFamily,
   approveFamily,
@@ -8,20 +9,24 @@ import {
   updateTax,
   bulkUpdateTax,
   sendTaxNotifications,
+  // Events
   getEvents,
   createEvent,
   updateEvent,
   deleteEvent,
+  // Workers
   getWorkers,
   createWorker,
   updateWorker,
   deleteWorker,
+  // History
   getHistory,
   createHistory,
   updateHistory,
   deleteHistory,
-  uploadGallery,       // Multer middleware: temp disk
-  uploadGalleryImage,  // Controller: uploads to Cloudinary
+  // Gallery
+  uploadGallery,
+  uploadGalleryImage, // Multer middleware + Cloudinary upload handler
   getGallery,
   deleteGallery,
 } from "../controllers/adminController.js";
@@ -59,11 +64,13 @@ router.put("/history/:id", updateHistory);
 router.delete("/history/:id", deleteHistory);
 
 // ---------------- Gallery (Cloudinary) ----------------
-// ✅ Upload route — uses multer then Cloudinary
-router.post("/gallery/upload", uploadGallery.single("image"), uploadGalleryImage);
-// ✅ Get all images
+// Upload route: Multer middleware + Cloudinary upload handler
+router.post("/gallery/upload", uploadGallery.single("file"), uploadGalleryImage);
+
+// Get all images/videos
 router.get("/gallery", getGallery);
-// ✅ Delete image by ID
+
+// Delete gallery item by ID
 router.delete("/gallery/:id", deleteGallery);
 
 export default router;

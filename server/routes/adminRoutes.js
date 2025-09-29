@@ -1,4 +1,5 @@
 import express from "express";
+import { protectAdmin } from "../middleware/authMiddleware.js";
 import {
   loginAdmin,
   // Families
@@ -6,9 +7,10 @@ import {
   createFamily,
   approveFamily,
   rejectFamily,
-  updateTax,         // update single tax
-  bulkUpdateTax,     // update multiple taxes
+  updateTax,
+  bulkUpdateTax,
   sendTaxNotifications,
+  deleteTax,            // Added delete tax record
   // Events
   getEvents,
   createEvent,
@@ -31,36 +33,12 @@ import {
   deleteGallery,
 } from "../controllers/adminController.js";
 
-import { protectAdmin } from "../middleware/authMiddleware.js";
-
-import multer from "multer";
-import path from "path";
-import { fileURLToPath } from "url";
-import fs from "fs";
-
 const router = express.Router();
-
-// ---------------- Multer setup for gallery uploads ----------------
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const galleryPath = path.join(__dirname, "../uploads/gallery");
-if (!fs.existsSync(galleryPath)) fs.mkdirSync(galleryPath, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, galleryPath),
-  filename: (req, file, cb) => {
-    const safeName = file.originalname.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_\.-]/g, "");
-    cb(null, `${Date.now()}-${safeName}`);
-  },
-});
-
-export const uploadGalleryMiddleware = multer({ storage });
 
 // ---------------- Admin login ----------------
 router.post("/login", loginAdmin);
 
-// ---------------- Protected routes ----------------
+// ---------------- Protected Routes ----------------
 router.use(protectAdmin);
 
 // ---------------- Families ----------------
@@ -68,11 +46,10 @@ router.get("/families", getAllFamilies);
 router.post("/families", createFamily);
 router.post("/families/approve", approveFamily);
 router.post("/families/reject", rejectFamily);
-
-// Tax operations
-router.post("/families/tax", updateTax);          // Update a single tax record
-router.post("/families/tax/bulk", bulkUpdateTax); // Update multiple tax records
-router.post("/families/notify", sendTaxNotifications); // Send notifications
+router.post("/families/tax", updateTax);
+router.post("/families/tax/bulk", bulkUpdateTax);
+router.post("/families/notify", sendTaxNotifications);
+router.delete("/families/tax/:taxId/:familyId", deleteTax); // Delete specific tax record
 
 // ---------------- Events ----------------
 router.get("/events", getEvents);
@@ -93,7 +70,7 @@ router.put("/history/:id", updateHistory);
 router.delete("/history/:id", deleteHistory);
 
 // ---------------- Gallery ----------------
-router.post("/gallery/upload", uploadGalleryMiddleware.single("file"), uploadGalleryImage);
+router.post("/gallery/upload", uploadGallery.single("file"), uploadGalleryImage);
 router.get("/gallery", getGallery);
 router.delete("/gallery/:id", deleteGallery);
 

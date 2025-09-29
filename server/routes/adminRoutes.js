@@ -10,7 +10,7 @@ import {
   updateTax,
   bulkUpdateTax,
   sendTaxNotifications,
-  deleteTax,            // Added delete tax record
+  deleteTax,            
   // Events
   getEvents,
   createEvent,
@@ -42,14 +42,18 @@ router.post("/login", loginAdmin);
 router.use(protectAdmin);
 
 // ---------------- Families ----------------
-router.get("/families", getAllFamilies);
-router.post("/families", createFamily);
-router.post("/families/approve", approveFamily);
-router.post("/families/reject", rejectFamily);
-router.post("/families/tax", updateTax);
-router.post("/families/tax/bulk", bulkUpdateTax);
+router.get("/families", getAllFamilies);                       // Get all families
+router.post("/families", createFamily);                        // Create a new family
+router.post("/families/approve", approveFamily);               // Approve a family
+router.post("/families/reject", rejectFamily);                 // Reject a family
+
+// Tax operations
+router.put("/families/tax", updateTax);                        // Update single family's tax
+router.put("/families/tax/bulk", bulkUpdateTax);               // Bulk update tax
+router.delete("/families/:familyId/tax/:taxId", deleteTax);    // Delete specific tax record
+
+// Send tax notifications
 router.post("/families/notify", sendTaxNotifications);
-router.delete("/families/tax/:taxId/:familyId", deleteTax); // Delete specific tax record
 
 // ---------------- Events ----------------
 router.get("/events", getEvents);

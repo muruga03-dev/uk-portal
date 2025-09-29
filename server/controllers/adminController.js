@@ -17,7 +17,7 @@ import { v2 as cloudinary } from "cloudinary";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Cloudinary config (ensure env vars are set)
+// Cloudinary configuration
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -25,7 +25,7 @@ cloudinary.config({
   secure: true,
 });
 
-// Multer temp storage
+// Multer temporary storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const tempDir = path.join(__dirname, "../uploads/temp");
@@ -127,16 +127,10 @@ export const rejectFamily = async (req, res) => {
   }
 };
 
-// ---------------- Tax ----------------
-
-// Update single family's tax (create or replace for a month)
+// ---------------- Tax Operations ----------------
 export const updateTax = async (req, res) => {
   try {
-    // Allow familyId either in body or params (flexible)
-    const { familyId } = req.body;
-    const month = req.body.month;
-    const amount = Number(req.body.amount || req.body.taxAmount || 0);
-
+    const { familyId, month, amount, paid } = req.body;
     if (!familyId || !month) return res.status(400).json({ message: "familyId and month are required" });
 
     const family = await Family.findById(familyId);
@@ -144,11 +138,10 @@ export const updateTax = async (req, res) => {
 
     const taxEntry = family.taxHistory.find((t) => t.month === month);
     if (taxEntry) {
-      taxEntry.amount = amount;
-      // don't automatically flip paid status here unless client asks
-      if (typeof req.body.paid === "boolean") taxEntry.paid = req.body.paid;
+      taxEntry.amount = Number(amount) || taxEntry.amount;
+      if (typeof paid === "boolean") taxEntry.paid = paid;
     } else {
-      family.taxHistory.push({ month, amount, paid: !!req.body.paid });
+      family.taxHistory.push({ month, amount: Number(amount) || 0, paid: !!paid });
     }
 
     await family.save();
@@ -158,28 +151,22 @@ export const updateTax = async (req, res) => {
   }
 };
 
-// PATCH route to mark a tax paid/unpaid or update amount for a month for a given family
 export const markTaxPaid = async (req, res) => {
   try {
     const { familyId } = req.params;
-    const { month } = req.body;
-    const paid = typeof req.body.paid === "boolean" ? req.body.paid : true;
-    const amount = req.body.amount !== undefined ? Number(req.body.amount) : undefined;
-
-    if (!familyId || !month) return res.status(400).json({ message: "familyId (param) and month (body) are required" });
+    const { month, paid, amount } = req.body;
+    if (!familyId || !month) return res.status(400).json({ message: "familyId and month are required" });
 
     const family = await Family.findById(familyId);
     if (!family) return res.status(404).json({ message: "Family not found" });
 
     let taxEntry = family.taxHistory.find((t) => t.month === month);
-
     if (!taxEntry) {
-      // create entry if not exist (safe behavior)
-      taxEntry = { month, amount: amount || 0, paid };
+      taxEntry = { month, amount: amount || 0, paid: !!paid };
       family.taxHistory.push(taxEntry);
     } else {
-      if (amount !== undefined) taxEntry.amount = amount;
-      taxEntry.paid = paid;
+      if (amount !== undefined) taxEntry.amount = Number(amount);
+      if (typeof paid === "boolean") taxEntry.paid = paid;
     }
 
     await family.save();
@@ -189,7 +176,6 @@ export const markTaxPaid = async (req, res) => {
   }
 };
 
-// Get total paid tax for a month
 export const getTotalTaxByMonth = async (req, res) => {
   try {
     const { month } = req.params;
@@ -197,8 +183,8 @@ export const getTotalTaxByMonth = async (req, res) => {
 
     const families = await Family.find({ "taxHistory.month": month }).lean();
     let total = 0;
-    families.forEach((family) => {
-      const entry = family.taxHistory.find((t) => t.month === month && t.paid === true);
+    families.forEach(family => {
+      const entry = family.taxHistory.find(t => t.month === month && t.paid);
       if (entry) total += Number(entry.amount) || 0;
     });
 
@@ -208,29 +194,21 @@ export const getTotalTaxByMonth = async (req, res) => {
   }
 };
 
-// Bulk add tax for many families - idempotent for same month
 export const bulkUpdateTax = async (req, res) => {
   try {
-    // expected payload: { familyIds: [], month: 'YYYY-MM', amount: Number, paid: boolean (optional) }
     const { familyIds, month, amount, paid } = req.body;
-    if (!familyIds || !Array.isArray(familyIds) || familyIds.length === 0) {
-      return res.status(400).json({ message: "familyIds must be a non-empty array" });
-    }
+    if (!familyIds || !Array.isArray(familyIds) || familyIds.length === 0) return res.status(400).json({ message: "familyIds must be a non-empty array" });
     if (!month) return res.status(400).json({ message: "month is required" });
-    const numericAmount = Number(amount || 0);
 
-    // Process each family: upsert taxHistory entry for the month, avoid duplicates
+    const numericAmount = Number(amount || 0);
     const results = { updated: 0, created: 0, skipped: 0 };
+
     for (const id of familyIds) {
       const family = await Family.findById(id);
-      if (!family) {
-        results.skipped += 1;
-        continue;
-      }
+      if (!family) { results.skipped += 1; continue; }
 
-      const existing = family.taxHistory.find((t) => t.month === month);
+      const existing = family.taxHistory.find(t => t.month === month);
       if (existing) {
-        // update amount and optionally paid flag
         existing.amount = numericAmount;
         if (typeof paid === "boolean") existing.paid = paid;
         results.updated += 1;
@@ -247,11 +225,29 @@ export const bulkUpdateTax = async (req, res) => {
   }
 };
 
+export const deleteTax = async (req, res) => {
+  try {
+    const { familyId, taxId } = req.params;
+    if (!familyId || !taxId) return res.status(400).json({ message: "familyId and taxId are required" });
+
+    const family = await Family.findById(familyId);
+    if (!family) return res.status(404).json({ message: "Family not found" });
+
+    const originalLength = family.taxHistory.length;
+    family.taxHistory = family.taxHistory.filter(t => t._id.toString() !== taxId);
+    if (family.taxHistory.length === originalLength) return res.status(404).json({ message: "Tax record not found" });
+
+    await family.save();
+    res.json({ message: "Tax record deleted successfully", family });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // ---------------- Notifications ----------------
 export const sendTaxNotifications = async (req, res) => {
   try {
     const families = await Family.find({ "taxHistory.paid": false });
-
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
@@ -314,7 +310,7 @@ export const deleteEvent = async (req, res) => {
   }
 };
 
-// ---------------- Workers CRUD (aligning with frontend: type/description) ----------------
+// ---------------- Workers CRUD ----------------
 export const getWorkers = async (req, res) => {
   try {
     res.json(await Worker.find());
@@ -325,7 +321,6 @@ export const getWorkers = async (req, res) => {
 
 export const createWorker = async (req, res) => {
   try {
-    // frontend sends { type, description }
     const { type, description } = req.body;
     if (!type) return res.status(400).json({ message: "Worker type is required" });
     const worker = new Worker({ type, description });
@@ -400,7 +395,6 @@ export const uploadGalleryImage = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
-    // Upload to Cloudinary
     const result = await cloudinary.uploader.upload(req.file.path, {
       folder: "uk-portal/gallery",
       use_filename: true,
@@ -408,7 +402,6 @@ export const uploadGalleryImage = async (req, res) => {
       resource_type: "auto",
     });
 
-    // Save to MongoDB
     const galleryItem = new Gallery({
       title: req.body.title || "Untitled",
       description: req.body.description || "",
@@ -416,8 +409,7 @@ export const uploadGalleryImage = async (req, res) => {
     });
     await galleryItem.save();
 
-    // Delete temp file
-    try { fs.unlinkSync(req.file.path); } catch (e) { /* ignore */ }
+    fs.unlinkSync(req.file.path); // delete temp file
 
     res.json({ message: "Gallery uploaded", galleryItem });
   } catch (err) {
@@ -440,14 +432,13 @@ export const deleteGallery = async (req, res) => {
     const galleryItem = await Gallery.findById(id);
     if (!galleryItem) return res.status(404).json({ message: "Gallery item not found" });
 
-    // Attempt to derive public_id; robust fallback to deleting DB record only if cloud delete fails
     try {
       const urlParts = galleryItem.url.split("/");
       const lastPart = urlParts[urlParts.length - 1];
       const publicId = lastPart.split(".")[0];
       await cloudinary.uploader.destroy(`uk-portal/gallery/${publicId}`);
     } catch (e) {
-      console.warn("Cloudinary delete failed or public id parse failed:", e.message);
+      console.warn("Cloudinary delete failed:", e.message);
     }
 
     await Gallery.findByIdAndDelete(id);

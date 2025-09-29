@@ -6,22 +6,22 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 
+// __dirname setup for ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ---------------- Multer setup ----------------
+// ----- Multer Storage Setup -----
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadPath = path.join(__dirname, "../uploads/documents");
     try {
-      fs.mkdirSync(uploadPath, { recursive: true }); // ensure folder exists
+      fs.mkdirSync(uploadPath, { recursive: true });
     } catch (err) {
       return cb(err);
     }
     cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
-    // Sanitize filename
     const safeName = file.originalname
       .replace(/\s+/g, "_")
       .replace(/[^a-zA-Z0-9_\.-]/g, "");
@@ -31,11 +31,10 @@ const storage = multer.diskStorage({
 
 export const upload = multer({ storage });
 
-// ---------------- Family Registration ----------------
+// ----- Family Registration -----
 export const registerFamily = async (req, res) => {
   try {
-    const { familyId, leaderName, email, password, members, address, phone } =
-      req.body;
+    const { familyId, leaderName, email, password, members, address, phone } = req.body;
     if (!familyId || !leaderName || !email || !password) {
       return res.status(400).json({
         message: "Family ID, Leader Name, Email, and Password are required",
@@ -70,12 +69,14 @@ export const registerFamily = async (req, res) => {
   }
 };
 
-// ---------------- Family Login ----------------
+// ----- Family Login -----
 export const loginFamily = async (req, res) => {
   try {
     const { familyId, password } = req.body;
     if (!familyId || !password) {
-      return res.status(400).json({ message: "Family ID and password are required" });
+      return res
+        .status(400)
+        .json({ message: "Family ID and password are required" });
     }
 
     const family = await Family.findOne({ familyId });
@@ -110,7 +111,7 @@ export const loginFamily = async (req, res) => {
   }
 };
 
-// ---------------- Get logged-in family profile ----------------
+// ----- Get My Family Profile -----
 export const getMyFamily = async (req, res) => {
   try {
     const family = await Family.findById(req.family._id).select("-passwordHash");
@@ -121,10 +122,11 @@ export const getMyFamily = async (req, res) => {
   }
 };
 
-// ---------------- Upload document ----------------
+// ----- Upload Document -----
 export const uploadDocument = async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    if (!req.file)
+      return res.status(400).json({ message: "No file uploaded" });
 
     const family = await Family.findById(req.family._id);
     if (!family) return res.status(404).json({ message: "Family not found" });
@@ -132,20 +134,23 @@ export const uploadDocument = async (req, res) => {
     const documentEntry = {
       originalName: req.file.originalname,
       storedName: req.file.filename,
-      path: `/uploads/documents/${req.file.filename}`, // public path
+      path: `/uploads/documents/${req.file.filename}`,
       uploadedAt: new Date(),
     };
 
     family.documents.push(documentEntry);
     await family.save();
 
-    res.json({ message: "Document uploaded successfully", document: documentEntry });
+    res.json({
+      message: "Document uploaded successfully",
+      document: documentEntry,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// ---------------- Download document ----------------
+// ----- Download Document -----
 export const downloadDocument = async (req, res) => {
   try {
     const { filename } = req.params;
@@ -155,7 +160,9 @@ export const downloadDocument = async (req, res) => {
 
     const doc = family.documents.find((d) => d.storedName === filename);
     if (!doc) {
-      return res.status(404).json({ message: "Document not found in your uploads" });
+      return res
+        .status(404)
+        .json({ message: "Document not found in your uploads" });
     }
 
     const filePath = path.join(__dirname, "../uploads/documents", doc.storedName);
@@ -169,15 +176,17 @@ export const downloadDocument = async (req, res) => {
   }
 };
 
-// ---------------- Delete document ----------------
+// ----- Delete Document -----
 export const deleteDocument = async (req, res) => {
   try {
-    const { filename } = req.params;
+    const { docId } = req.params;
 
     const family = await Family.findById(req.family._id);
     if (!family) return res.status(404).json({ message: "Family not found" });
 
-    const docIndex = family.documents.findIndex((d) => d.storedName === filename);
+    const docIndex = family.documents.findIndex(
+      (d) => d._id.toString() === docId
+    );
     if (docIndex === -1) {
       return res.status(404).json({ message: "Document not found" });
     }
@@ -186,13 +195,33 @@ export const deleteDocument = async (req, res) => {
     const filePath = path.join(__dirname, "../uploads/documents", doc.storedName);
 
     if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath); // delete file from server
+      fs.unlinkSync(filePath);
     }
 
     family.documents.splice(docIndex, 1);
     await family.save();
 
-    res.json({ message: "Document deleted successfully" });
+    res.json({ message: "Document deleted successfully", family });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ----- Delete Tax Record -----
+export const deleteTax = async (req, res) => {
+  try {
+    const { taxId } = req.params;
+
+    const family = await Family.findById(req.family._id);
+    if (!family) return res.status(404).json({ message: "Family not found" });
+
+    family.taxHistory = family.taxHistory.filter(
+      (tax) => tax._id.toString() !== taxId
+    );
+
+    await family.save();
+
+    res.json({ message: "Tax record deleted successfully", family });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

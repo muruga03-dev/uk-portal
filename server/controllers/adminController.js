@@ -1,3 +1,4 @@
+// controllers/adminController.js
 import Admin from "../models/Admin.js";
 import Family from "../models/Family.js";
 import Event from "../models/Event.js";
@@ -16,15 +17,15 @@ import { v2 as cloudinary } from "cloudinary";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ---------------- Cloudinary Setup ----------------
+// Cloudinary config (ensure env vars are set)
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || "dvtgdswby",
-  api_key: process.env.CLOUDINARY_API_KEY || "691598178149699",
-  api_secret: process.env.CLOUDINARY_API_SECRET || "5voWlmSviPlpbeiaOcusQ-9V_y4",
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
   secure: true,
 });
 
-// ---------------- Multer (temporary storage before Cloudinary) ----------------
+// Multer temp storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const tempDir = path.join(__dirname, "../uploads/temp");
@@ -63,7 +64,7 @@ export const loginAdmin = async (req, res) => {
 // ---------------- Families CRUD ----------------
 export const getAllFamilies = async (req, res) => {
   try {
-    const families = await Family.find().select("-passwordHash");
+    const families = await Family.find().select("-passwordHash").lean();
     res.json(families);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -72,14 +73,11 @@ export const getAllFamilies = async (req, res) => {
 
 export const createFamily = async (req, res) => {
   try {
-    const { familyId, leaderName, members, address, email, phone, password } =
-      req.body;
-    if (!familyId || !leaderName || !email || !password)
-      return res.status(400).json({ message: "Missing required fields" });
+    const { familyId, leaderName, members, address, email, phone, password } = req.body;
+    if (!familyId || !leaderName || !email || !password) return res.status(400).json({ message: "Missing required fields" });
 
     const existing = await Family.findOne({ familyId });
-    if (existing)
-      return res.status(400).json({ message: "Family already exists" });
+    if (existing) return res.status(400).json({ message: "Family already exists" });
 
     const passwordHash = await bcrypt.hash(password, 10);
 
@@ -130,17 +128,27 @@ export const rejectFamily = async (req, res) => {
 };
 
 // ---------------- Tax ----------------
+
+// Update single family's tax (create or replace for a month)
 export const updateTax = async (req, res) => {
   try {
-    const { familyId, month, amount } = req.body;
+    // Allow familyId either in body or params (flexible)
+    const { familyId } = req.body;
+    const month = req.body.month;
+    const amount = Number(req.body.amount || req.body.taxAmount || 0);
+
+    if (!familyId || !month) return res.status(400).json({ message: "familyId and month are required" });
+
     const family = await Family.findById(familyId);
     if (!family) return res.status(404).json({ message: "Family not found" });
 
     const taxEntry = family.taxHistory.find((t) => t.month === month);
     if (taxEntry) {
       taxEntry.amount = amount;
+      // don't automatically flip paid status here unless client asks
+      if (typeof req.body.paid === "boolean") taxEntry.paid = req.body.paid;
     } else {
-      family.taxHistory.push({ month, amount, paid: false });
+      family.taxHistory.push({ month, amount, paid: !!req.body.paid });
     }
 
     await family.save();
@@ -150,38 +158,48 @@ export const updateTax = async (req, res) => {
   }
 };
 
-// Mark Tax as Paid
+// PATCH route to mark a tax paid/unpaid or update amount for a month for a given family
 export const markTaxPaid = async (req, res) => {
   try {
-    const { familyId, month } = req.body;
+    const { familyId } = req.params;
+    const { month } = req.body;
+    const paid = typeof req.body.paid === "boolean" ? req.body.paid : true;
+    const amount = req.body.amount !== undefined ? Number(req.body.amount) : undefined;
+
+    if (!familyId || !month) return res.status(400).json({ message: "familyId (param) and month (body) are required" });
+
     const family = await Family.findById(familyId);
     if (!family) return res.status(404).json({ message: "Family not found" });
 
-    const taxEntry = family.taxHistory.find((t) => t.month === month);
-    if (!taxEntry)
-      return res.status(404).json({ message: "Tax entry not found" });
+    let taxEntry = family.taxHistory.find((t) => t.month === month);
 
-    taxEntry.paid = true;
+    if (!taxEntry) {
+      // create entry if not exist (safe behavior)
+      taxEntry = { month, amount: amount || 0, paid };
+      family.taxHistory.push(taxEntry);
+    } else {
+      if (amount !== undefined) taxEntry.amount = amount;
+      taxEntry.paid = paid;
+    }
+
     await family.save();
-
-    res.json({ message: "Tax marked as paid", family });
+    res.json({ message: "Tax entry updated", family });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// Get Total Paid Tax for a Month
+// Get total paid tax for a month
 export const getTotalTaxByMonth = async (req, res) => {
   try {
     const { month } = req.params;
-    const families = await Family.find({ "taxHistory.month": month });
+    if (!month) return res.status(400).json({ message: "month is required" });
 
+    const families = await Family.find({ "taxHistory.month": month }).lean();
     let total = 0;
     families.forEach((family) => {
-      const entry = family.taxHistory.find(
-        (t) => t.month === month && t.paid === true
-      );
-      if (entry) total += entry.amount;
+      const entry = family.taxHistory.find((t) => t.month === month && t.paid === true);
+      if (entry) total += Number(entry.amount) || 0;
     });
 
     res.json({ month, total });
@@ -190,23 +208,40 @@ export const getTotalTaxByMonth = async (req, res) => {
   }
 };
 
-// Bulk Add Tax
+// Bulk add tax for many families - idempotent for same month
 export const bulkUpdateTax = async (req, res) => {
   try {
-    const { familyIds, taxAmount, month } = req.body;
-    if (!familyIds || !Array.isArray(familyIds))
-      return res.status(400).json({ message: "familyIds must be an array" });
+    // expected payload: { familyIds: [], month: 'YYYY-MM', amount: Number, paid: boolean (optional) }
+    const { familyIds, month, amount, paid } = req.body;
+    if (!familyIds || !Array.isArray(familyIds) || familyIds.length === 0) {
+      return res.status(400).json({ message: "familyIds must be a non-empty array" });
+    }
+    if (!month) return res.status(400).json({ message: "month is required" });
+    const numericAmount = Number(amount || 0);
 
-    await Family.updateMany(
-      { _id: { $in: familyIds } },
-      {
-        $push: {
-          taxHistory: { month, amount: taxAmount, paid: false },
-        },
+    // Process each family: upsert taxHistory entry for the month, avoid duplicates
+    const results = { updated: 0, created: 0, skipped: 0 };
+    for (const id of familyIds) {
+      const family = await Family.findById(id);
+      if (!family) {
+        results.skipped += 1;
+        continue;
       }
-    );
 
-    res.json({ message: `Tax added for ${familyIds.length} families` });
+      const existing = family.taxHistory.find((t) => t.month === month);
+      if (existing) {
+        // update amount and optionally paid flag
+        existing.amount = numericAmount;
+        if (typeof paid === "boolean") existing.paid = paid;
+        results.updated += 1;
+      } else {
+        family.taxHistory.push({ month, amount: numericAmount, paid: !!paid });
+        results.created += 1;
+      }
+      await family.save();
+    }
+
+    res.json({ message: `Tax processed for ${familyIds.length} families`, results });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -222,16 +257,19 @@ export const sendTaxNotifications = async (req, res) => {
       auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
     });
 
+    let count = 0;
     for (const f of families) {
+      if (!f.email) continue;
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: f.email,
         subject: "Pending Tax Notification",
         text: `Dear ${f.leaderName}, you have pending tax to pay. Please pay as soon as possible.`,
       });
+      count += 1;
     }
 
-    res.json({ message: "Notifications sent", count: families.length });
+    res.json({ message: "Notifications sent", count });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -240,7 +278,7 @@ export const sendTaxNotifications = async (req, res) => {
 // ---------------- Events CRUD ----------------
 export const getEvents = async (req, res) => {
   try {
-    res.json(await Event.find());
+    res.json(await Event.find().sort({ date: 1 }));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -276,7 +314,7 @@ export const deleteEvent = async (req, res) => {
   }
 };
 
-// ---------------- Workers CRUD ----------------
+// ---------------- Workers CRUD (aligning with frontend: type/description) ----------------
 export const getWorkers = async (req, res) => {
   try {
     res.json(await Worker.find());
@@ -287,13 +325,10 @@ export const getWorkers = async (req, res) => {
 
 export const createWorker = async (req, res) => {
   try {
-    const { name, workType, description } = req.body;
-    if (!name || !workType)
-      return res
-        .status(400)
-        .json({ message: "Worker name and type are required" });
-
-    const worker = new Worker({ name, workType, description });
+    // frontend sends { type, description }
+    const { type, description } = req.body;
+    if (!type) return res.status(400).json({ message: "Worker type is required" });
+    const worker = new Worker({ type, description });
     await worker.save();
     res.json({ message: "Worker created", worker });
   } catch (err) {
@@ -324,7 +359,7 @@ export const deleteWorker = async (req, res) => {
 // ---------------- History CRUD ----------------
 export const getHistory = async (req, res) => {
   try {
-    res.json(await History.find());
+    res.json(await History.find().sort({ createdAt: -1 }));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -382,7 +417,7 @@ export const uploadGalleryImage = async (req, res) => {
     await galleryItem.save();
 
     // Delete temp file
-    fs.unlinkSync(req.file.path);
+    try { fs.unlinkSync(req.file.path); } catch (e) { /* ignore */ }
 
     res.json({ message: "Gallery uploaded", galleryItem });
   } catch (err) {
@@ -403,19 +438,19 @@ export const deleteGallery = async (req, res) => {
   try {
     const { id } = req.params;
     const galleryItem = await Gallery.findById(id);
-    if (!galleryItem)
-      return res.status(404).json({ message: "Gallery item not found" });
+    if (!galleryItem) return res.status(404).json({ message: "Gallery item not found" });
 
-    // Extract public_id for Cloudinary
-    const parts = galleryItem.url.split("/");
-    const publicId = parts.slice(-2).join("/").split(".")[0];
+    // Attempt to derive public_id; robust fallback to deleting DB record only if cloud delete fails
+    try {
+      const urlParts = galleryItem.url.split("/");
+      const lastPart = urlParts[urlParts.length - 1];
+      const publicId = lastPart.split(".")[0];
+      await cloudinary.uploader.destroy(`uk-portal/gallery/${publicId}`);
+    } catch (e) {
+      console.warn("Cloudinary delete failed or public id parse failed:", e.message);
+    }
 
-    // Delete from Cloudinary
-    await cloudinary.uploader.destroy(publicId);
-
-    // Delete from DB
     await Gallery.findByIdAndDelete(id);
-
     res.json({ message: "Gallery item deleted" });
   } catch (err) {
     console.error("Gallery deletion error:", err);

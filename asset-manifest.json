@@ -1,14 +1,14 @@
 {
   "files": {
     "main.css": "./static/css/main.4d5cc7cf.css",
-    "main.js": "./static/js/main.8fa2867e.js",
+    "main.js": "./static/js/main.79d767b8.js",
     "static/media/uk logo.jpg": "./static/media/uk logo.20397fd4ec7e4019aafe.jpg",
     "index.html": "./index.html",
     "main.4d5cc7cf.css.map": "./static/css/main.4d5cc7cf.css.map",
-    "main.8fa2867e.js.map": "./static/js/main.8fa2867e.js.map"
+    "main.79d767b8.js.map": "./static/js/main.79d767b8.js.map"
   },
   "entrypoints": [
     "static/css/main.4d5cc7cf.css",
-    "static/js/main.8fa2867e.js"
+    "static/js/main.79d767b8.js"
   ]
 }

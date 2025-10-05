@@ -8,6 +8,8 @@ import {
   approveFamily,
   rejectFamily,
   updateTax,
+  markTaxPaid,
+  getTotalTaxByMonth,
   bulkUpdateTax,
   sendTaxNotifications,
   deleteTax,            
@@ -49,33 +51,35 @@ router.post("/families/reject", rejectFamily);                 // Reject a famil
 
 // Tax operations
 router.put("/families/tax", updateTax);                        // Update single family's tax
-router.put("/families/tax/bulk", bulkUpdateTax);               // Bulk update tax
+router.patch("/families/:familyId/tax", markTaxPaid);          // Mark tax as paid for specific family
+router.get("/tax/summary/:month", getTotalTaxByMonth);         // Get tax summary by month
+router.post("/families/tax/bulk", bulkUpdateTax);              // Bulk update tax for multiple families
 router.delete("/families/:familyId/tax/:taxId", deleteTax);    // Delete specific tax record
 
 // Send tax notifications
-router.post("/families/notify", sendTaxNotifications);
+router.post("/families/notify", sendTaxNotifications);         // Send tax notifications to families
 
 // ---------------- Events ----------------
-router.get("/events", getEvents);
-router.post("/events", createEvent);
-router.put("/events/:id", updateEvent);
-router.delete("/events/:id", deleteEvent);
+router.get("/events", getEvents);                              // Get all events
+router.post("/events", createEvent);                           // Create new event
+router.put("/events/:id", updateEvent);                        // Update event by ID
+router.delete("/events/:id", deleteEvent);                     // Delete event by ID
 
 // ---------------- Workers ----------------
-router.get("/workers", getWorkers);
-router.post("/workers", createWorker);
-router.put("/workers/:id", updateWorker);
-router.delete("/workers/:id", deleteWorker);
+router.get("/workers", getWorkers);                            // Get all workers
+router.post("/workers", createWorker);                         // Create new worker
+router.put("/workers/:id", updateWorker);                      // Update worker by ID
+router.delete("/workers/:id", deleteWorker);                   // Delete worker by ID
 
 // ---------------- History ----------------
-router.get("/history", getHistory);
-router.post("/history", createHistory);
-router.put("/history/:id", updateHistory);
-router.delete("/history/:id", deleteHistory);
+router.get("/history", getHistory);                            // Get all history entries
+router.post("/history", createHistory);                        // Create new history entry
+router.put("/history/:id", updateHistory);                     // Update history entry by ID
+router.delete("/history/:id", deleteHistory);                  // Delete history entry by ID
 
 // ---------------- Gallery ----------------
-router.post("/gallery/upload", uploadGallery.single("file"), uploadGalleryImage);
-router.get("/gallery", getGallery);
-router.delete("/gallery/:id", deleteGallery);
+router.post("/gallery/upload", uploadGallery.single("image"), uploadGalleryImage); // Upload gallery image
+router.get("/gallery", getGallery);                            // Get all gallery items
+router.delete("/gallery/:id", deleteGallery);                  // Delete gallery item by ID
 
 export default router;

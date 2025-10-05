@@ -1,4 +1,3 @@
-// src/components/AdminDashboard.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
@@ -7,18 +6,17 @@ const AdminDashboard = () => {
   const token = localStorage.getItem("adminToken");
   const headers = { Authorization: `Bearer ${token}` };
 
-  // Core states
+  // ---------- State ----------
   const [families, setFamilies] = useState([]);
   const [events, setEvents] = useState([]);
   const [workers, setWorkers] = useState([]);
   const [historyItems, setHistoryItems] = useState([]);
   const [gallery, setGallery] = useState([]);
-
-  // UI states
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-
-  // Form states
+  const [successMsg, setSuccessMsg] = useState("");
+  
+  // family form
   const [newFamily, setNewFamily] = useState({
     familyId: "",
     leaderName: "",
@@ -28,13 +26,8 @@ const AdminDashboard = () => {
     phone: "",
     address: "",
   });
-  const [newEvent, setNewEvent] = useState({ title: "", date: "" });
-  const [newWorker, setNewWorker] = useState({ type: "", description: "" });
-  const [newHistory, setNewHistory] = useState({ contentEN: "", contentTA: "" });
-  const [galleryFile, setGalleryFile] = useState(null);
-  const [galleryMeta, setGalleryMeta] = useState({ title: "", description: "" });
 
-  // Tax states
+  // tax form / selection
   const [selectedFamilies, setSelectedFamilies] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
   const [taxMonth, setTaxMonth] = useState(() => {
@@ -44,17 +37,31 @@ const AdminDashboard = () => {
   const [taxAmount, setTaxAmount] = useState("");
   const [taxPaid, setTaxPaid] = useState(false);
 
-  // Search
-  const [searchFamily, setSearchFamily] = useState("");
+  // gallery form
+  const [galleryFile, setGalleryFile] = useState(null);
+  const [galleryMeta, setGalleryMeta] = useState({ title: "", description: "" });
 
-  // Load all data
+  // event/worker/history forms
+  const [newEvent, setNewEvent] = useState({ title: "", date: "" });
+  const [newWorker, setNewWorker] = useState({ type: "", description: "" });
+  const [newHistory, setNewHistory] = useState({ contentEN: "", contentTA: "" });
+
+  // UI helpers
+  const [searchFamily, setSearchFamily] = useState("");
+  const [activeTab, setActiveTab] = useState("families");
+
+  // Show success message
+  const showSuccess = (message) => {
+    setSuccessMsg(message);
+    setTimeout(() => setSuccessMsg(""), 3000);
+  };
+
+  // ---------- Load all data ----------
   const loadAll = async () => {
-    if (!token) {
-      setErrorMsg("Please log in to access the dashboard.");
-      return;
-    }
     try {
       setLoading(true);
+      setErrorMsg("");
+      
       const [fRes, eRes, wRes, hRes, gRes] = await Promise.all([
         axios.get(`${API_BASE}/api/admin/families`, { headers }),
         axios.get(`${API_BASE}/api/admin/events`, { headers }),
@@ -62,73 +69,88 @@ const AdminDashboard = () => {
         axios.get(`${API_BASE}/api/admin/history`, { headers }),
         axios.get(`${API_BASE}/api/admin/gallery`, { headers }),
       ]);
+      
       setFamilies(fRes.data || []);
       setEvents(eRes.data || []);
       setWorkers(wRes.data || []);
       setHistoryItems(hRes.data || []);
       setGallery(gRes.data || []);
-      setErrorMsg("");
     } catch (err) {
-      console.error(err);
-      setErrorMsg("Failed to load data. Please try again later.");
+      console.error("LoadAll error:", err);
+      setErrorMsg("Failed to load admin data. Please check your connection.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Action Handlers
-  const createFamily = async () => {
-    if (!newFamily.familyId || !newFamily.password || !newFamily.email || !newFamily.leaderName) {
-      alert("Please fill required family details.");
+    if (!token) {
+      setErrorMsg("No admin token. Please login.");
       return;
     }
+    loadAll();
+  }, [token]);
+
+  // ---------- Family CRUD / approve ----------
+  const createFamily = async () => {
+    if (!newFamily.familyId || !newFamily.password || !newFamily.leaderName || !newFamily.email) {
+      return setErrorMsg("Family ID, Leader Name, Email, and Password are required");
+    }
+
     try {
       setLoading(true);
-      await axios.post(
-        `${API_BASE}/api/admin/families`,
-        {
-          familyId: newFamily.familyId,
-          leaderName: newFamily.leaderName,
-          email: newFamily.email,
-          password: newFamily.password,
-          members: newFamily.members ? newFamily.members.split(",").map((m) => m.trim()) : [],
-          phone: newFamily.phone,
-          address: newFamily.address,
-        },
-        { headers }
-      );
-      setNewFamily({ familyId: "", leaderName: "", email: "", password: "", members: "", phone: "", address: "" });
+      const body = {
+        familyId: newFamily.familyId,
+        leaderName: newFamily.leaderName,
+        email: newFamily.email,
+        password: newFamily.password,
+        members: newFamily.members ? newFamily.members.split(",").map(s => s.trim()) : [],
+        phone: newFamily.phone,
+        address: newFamily.address,
+      };
+
+      await axios.post(`${API_BASE}/api/admin/families`, body, { headers });
+      
+      setNewFamily({
+        familyId: "",
+        leaderName: "",
+        email: "",
+        password: "",
+        members: "",
+        phone: "",
+        address: "",
+      });
+      
       await loadAll();
+      showSuccess("Family created successfully!");
     } catch (err) {
-      console.error(err);
-      alert(err?.response?.data?.message || "Failed to create family.");
+      console.error("createFamily:", err.response || err);
+      setErrorMsg(err.response?.data?.message || "Failed to create family");
     } finally {
       setLoading(false);
     }
   };
 
-  const approveFamily = async (id, approve) => {
+  const approveFamily = async (id, approve = true) => {
     try {
-      const confirmAction = window.confirm(`Are you sure you want to ${approve ? "approve" : "reject"} this family?`);
-      if (!confirmAction) return;
       setLoading(true);
-      await axios.post(`${API_BASE}/api/admin/${approve ? "families/approve" : "families/reject"}`, { id }, { headers });
+      const endpoint = approve ? "/families/approve" : "/families/reject";
+      await axios.post(`${API_BASE}/api/admin${endpoint}`, { id }, { headers });
       await loadAll();
+      showSuccess(`Family ${approve ? "approved" : "rejected"} successfully!`);
     } catch (err) {
-      console.error(err);
-      alert("Failed to update family status.");
+      console.error("approveFamily:", err.response || err);
+      setErrorMsg("Failed to update family status");
     } finally {
       setLoading(false);
     }
   };
 
-  const toggleFamilySelection = (id) => {
-    setSelectedFamilies((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  // ---------- Tax: selection helpers ----------
+  const toggleSelectFamily = (id) => {
+    setSelectedFamilies(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
   };
 
   const toggleSelectAll = () => {
@@ -136,412 +158,953 @@ const AdminDashboard = () => {
       setSelectedFamilies([]);
       setSelectAll(false);
     } else {
-      setSelectedFamilies(families.map((f) => f._id));
+      setSelectedFamilies(families.map(f => f._id));
       setSelectAll(true);
     }
   };
 
-  // Bulk add tax - uses backend endpoint: POST /api/admin/families/tax
+  // ---------- Add tax (bulk) ----------
   const addTaxBulk = async () => {
-    if (!taxMonth || !taxAmount || !selectedFamilies.length) {
-      alert("Please fill all tax details and select families.");
-      return;
-    }
+    if (!taxMonth || !taxAmount) return setErrorMsg("Month and amount are required");
+    if (!selectedFamilies.length) return setErrorMsg("Please select at least one family");
+
     try {
       setLoading(true);
-      // payload: { familyIds, month, amount, paid } - matches backend
-      await axios.post(`${API_BASE}/api/admin/families/tax`, {
-        familyIds: selectedFamilies,
-        month: taxMonth,
-        amount: Number(taxAmount),
-        paid: Boolean(taxPaid),
-      }, { headers });
+      
+      await axios.post(
+        `${API_BASE}/api/admin/families/tax/bulk`,
+        {
+          familyIds: selectedFamilies,
+          taxAmount: parseFloat(taxAmount),
+          month: taxMonth,
+          paid: taxPaid || false,
+        },
+        { headers }
+      );
 
-      // reset selection and fields
+      // Update local state
+      setFamilies(prev => prev.map(f => {
+        if (selectedFamilies.includes(f._id)) {
+          const taxHistory = f.taxHistory ? [...f.taxHistory] : [];
+          taxHistory.push({
+            month: taxMonth,
+            amount: parseFloat(taxAmount),
+            paid: !!taxPaid,
+            uploadedAt: new Date().toISOString()
+          });
+          return { ...f, taxHistory };
+        }
+        return f;
+      }));
+
+      // Reset form
       setSelectedFamilies([]);
       setSelectAll(false);
       setTaxAmount("");
       setTaxPaid(false);
-      await loadAll();
+      
+      showSuccess("Tax added to selected families successfully!");
     } catch (err) {
-      console.error(err);
-      alert(err?.response?.data?.message || "Failed to add tax.");
+      console.error("addTaxBulk:", err.response || err);
+      setErrorMsg(err.response?.data?.message || "Failed to add tax");
     } finally {
       setLoading(false);
     }
   };
 
-  // Mark tax paid for a single family: PATCH /api/admin/families/:familyId/tax { month, paid, amount? }
-  const markTaxPaid = async (familyId, month) => {
+  // ---------- Mark single family's tax as paid ----------
+  const markFamilyTaxPaid = async (familyId, month) => {
     try {
       setLoading(true);
-      await axios.patch(`${API_BASE}/api/admin/families/${familyId}/tax`, { month, paid: true }, { headers });
-      await loadAll();
+      await axios.patch(
+        `${API_BASE}/api/admin/families/${familyId}/tax`,
+        { month, paid: true },
+        { headers }
+      );
+
+      // Update local state
+      setFamilies(prev => prev.map(f => {
+        if (f._id !== familyId) return f;
+        
+        const taxHistory = f.taxHistory ? f.taxHistory.map(t => 
+          t.month === month ? { ...t, paid: true } : t
+        ) : [];
+        
+        return { ...f, taxHistory };
+      }));
+      
+      showSuccess("Tax marked as paid successfully!");
     } catch (err) {
-      console.error(err);
-      alert("Failed to update tax status.");
+      console.error("markFamilyTaxPaid:", err.response || err);
+      setErrorMsg(err.response?.data?.message || "Failed to mark tax as paid");
     } finally {
       setLoading(false);
     }
   };
 
+  // ---------- Delete tax record ----------
+  const deleteTaxRecord = async (familyId, taxId) => {
+    if (!window.confirm("Are you sure you want to delete this tax record?")) return;
+
+    try {
+      setLoading(true);
+      await axios.delete(
+        `${API_BASE}/api/admin/families/${familyId}/tax/${taxId}`,
+        { headers }
+      );
+
+      // Update local state
+      setFamilies(prev => prev.map(f => {
+        if (f._id !== familyId) return f;
+        const taxHistory = f.taxHistory.filter(t => t._id !== taxId);
+        return { ...f, taxHistory };
+      }));
+
+      showSuccess("Tax record deleted successfully!");
+    } catch (err) {
+      console.error("deleteTaxRecord:", err.response || err);
+      setErrorMsg(err.response?.data?.message || "Failed to delete tax record");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ---------- Send notifications ----------
+  const sendNotifications = async () => {
+    if (!window.confirm("Send notification to all families with pending taxes?")) return;
+
+    try {
+      setLoading(true);
+      await axios.post(`${API_BASE}/api/admin/families/notify`, {}, { headers });
+      showSuccess("Notifications sent successfully!");
+    } catch (err) {
+      console.error("sendNotifications:", err.response || err);
+      setErrorMsg("Failed to send notifications");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ---------- Events CRUD ----------
   const addEvent = async () => {
-    if (!newEvent.title || !newEvent.date) return alert("Please fill in event title and date.");
+    if (!newEvent.title || !newEvent.date) return setErrorMsg("Title & date are required");
+    
     try {
       setLoading(true);
       await axios.post(`${API_BASE}/api/admin/events`, newEvent, { headers });
       setNewEvent({ title: "", date: "" });
       await loadAll();
+      showSuccess("Event added successfully!");
     } catch (err) {
-      console.error(err);
-      alert("Failed to add event.");
+      console.error("addEvent:", err.response || err);
+      setErrorMsg("Failed to add event");
     } finally {
       setLoading(false);
     }
   };
 
   const deleteEvent = async (id) => {
-    if (!window.confirm("Are you sure to delete this event?")) return;
+    if (!window.confirm("Are you sure you want to delete this event?")) return;
+    
     try {
       setLoading(true);
       await axios.delete(`${API_BASE}/api/admin/events/${id}`, { headers });
       await loadAll();
+      showSuccess("Event deleted successfully!");
     } catch (err) {
-      console.error(err);
-      alert("Failed to delete event.");
+      console.error("deleteEvent:", err.response || err);
+      setErrorMsg("Failed to delete event");
     } finally {
       setLoading(false);
     }
   };
 
+  // ---------- Workers CRUD ----------
   const addWorker = async () => {
-    if (!newWorker.type) return alert("Please provide worker type.");
+    if (!newWorker.type) return setErrorMsg("Worker type is required");
+    
     try {
       setLoading(true);
-      // Backend expects { type, description }
       await axios.post(`${API_BASE}/api/admin/workers`, newWorker, { headers });
       setNewWorker({ type: "", description: "" });
       await loadAll();
+      showSuccess("Worker added successfully!");
     } catch (err) {
-      console.error(err);
-      alert("Failed to add worker.");
+      console.error("addWorker:", err.response || err);
+      setErrorMsg("Failed to add worker");
     } finally {
       setLoading(false);
     }
   };
 
   const deleteWorker = async (id) => {
-    if (!window.confirm("Are you sure to delete this worker?")) return;
+    if (!window.confirm("Are you sure you want to delete this worker?")) return;
+    
     try {
       setLoading(true);
       await axios.delete(`${API_BASE}/api/admin/workers/${id}`, { headers });
       await loadAll();
+      showSuccess("Worker deleted successfully!");
     } catch (err) {
-      console.error(err);
-      alert("Failed to delete worker.");
+      console.error("deleteWorker:", err);
+      setErrorMsg("Failed to delete worker");
     } finally {
       setLoading(false);
     }
   };
 
+  // ---------- History CRUD ----------
   const addHistory = async () => {
-    if (!newHistory.contentEN && !newHistory.contentTA) {
-      alert("Please enter history content in at least one language.");
-      return;
-    }
+    if (!newHistory.contentEN && !newHistory.contentTA) return setErrorMsg("Enter history content in at least one language");
+    
     try {
       setLoading(true);
-      await axios.post(`${API_BASE}/api/admin/history`, {
-        content: { en: newHistory.contentEN, ta: newHistory.contentTA },
-      }, { headers });
+      await axios.post(
+        `${API_BASE}/api/admin/history`,
+        { content: { en: newHistory.contentEN, ta: newHistory.contentTA } },
+        { headers }
+      );
       setNewHistory({ contentEN: "", contentTA: "" });
       await loadAll();
+      showSuccess("History entry added successfully!");
     } catch (err) {
-      console.error(err);
-      alert("Failed to add history.");
+      console.error("addHistory:", err.response || err);
+      setErrorMsg("Failed to add history entry");
     } finally {
       setLoading(false);
     }
   };
 
   const deleteHistory = async (id) => {
-    if (!window.confirm("Are you sure to delete this history entry?")) return;
+    if (!window.confirm("Are you sure you want to delete this history entry?")) return;
+    
     try {
       setLoading(true);
       await axios.delete(`${API_BASE}/api/admin/history/${id}`, { headers });
       await loadAll();
+      showSuccess("History entry deleted successfully!");
     } catch (err) {
-      console.error(err);
-      alert("Failed to delete history.");
+      console.error("deleteHistory:", err);
+      setErrorMsg("Failed to delete history entry");
     } finally {
       setLoading(false);
     }
   };
 
+  // ---------- Gallery upload/delete ----------
   const uploadGallery = async () => {
-    if (!galleryFile) {
-      alert("Please select a file to upload.");
-      return;
-    }
+    if (!galleryFile) return setErrorMsg("Please select a file");
+    
     try {
       setLoading(true);
       const fd = new FormData();
       fd.append("image", galleryFile);
       fd.append("title", galleryMeta.title || "Untitled");
       fd.append("description", galleryMeta.description || "");
-      await axios.post(`${API_BASE}/api/admin/gallery`, fd, {
+
+      await axios.post(`${API_BASE}/api/admin/gallery/upload`, fd, {
         headers: { ...headers, "Content-Type": "multipart/form-data" },
       });
+
       setGalleryFile(null);
       setGalleryMeta({ title: "", description: "" });
       await loadAll();
+      showSuccess("File uploaded successfully!");
     } catch (err) {
-      console.error(err);
-      alert("Failed to upload gallery item.");
+      console.error("uploadGallery:", err.response || err);
+      setErrorMsg("Failed to upload file");
     } finally {
       setLoading(false);
     }
   };
 
   const deleteGallery = async (id) => {
-    if (!window.confirm("Are you sure to delete this gallery item?")) return;
+    if (!window.confirm("Are you sure you want to delete this gallery item?")) return;
+    
     try {
       setLoading(true);
       await axios.delete(`${API_BASE}/api/admin/gallery/${id}`, { headers });
       await loadAll();
+      showSuccess("Gallery item deleted successfully!");
     } catch (err) {
-      console.error(err);
-      alert("Failed to delete gallery.");
+      console.error("deleteGallery:", err.response || err);
+      setErrorMsg("Failed to delete gallery item");
     } finally {
       setLoading(false);
     }
   };
 
-  // Filtering & derived data
-  const filteredFamilies = useMemo(() => {
-    if (!searchFamily.trim()) return families;
-    const lower = searchFamily.toLowerCase();
-    return families.filter((f) => (f.familyId + " " + f.leaderName + " " + (f.email ?? "")).toLowerCase().includes(lower));
+  // ---------- Derived data for tax management ----------
+  const familiesFiltered = useMemo(() => {
+    if (!searchFamily) return families;
+    const q = searchFamily.toLowerCase();
+    return families.filter(f => 
+      (f.familyId + "|" + f.leaderName + "|" + (f.email || "")).toLowerCase().includes(q)
+    );
   }, [families, searchFamily]);
 
-  const paidFamilies = useMemo(() => families.filter((f) => f.taxHistory?.some((t) => t.month === taxMonth && t.paid)), [families, taxMonth]);
-  const unpaidFamilies = useMemo(() => families.filter((f) => !f.taxHistory?.some((t) => t.month === taxMonth && t.paid)), [families, taxMonth]);
-  const totalPaid = useMemo(() => paidFamilies.reduce((acc, f) => {
-    const entry = f.taxHistory.find((t) => t.month === taxMonth && t.paid);
-    return acc + (Number(entry?.amount) || 0);
-  }, 0), [paidFamilies, taxMonth]);
+  const paidForSelectedMonth = useMemo(() => {
+    return families.filter(f => 
+      f.taxHistory?.some(t => t.month === taxMonth && t.paid)
+    );
+  }, [families, taxMonth]);
 
-  return (
-    <div className="max-w-7xl mx-auto p-6 space-y-10">
-      <header className="flex items-center justify-between">
-        <h1 className="text-3xl font-extrabold">Admin Dashboard</h1>
-        <div className="flex items-center gap-3">
-          <button className="px-4 py-2 rounded bg-slate-200" onClick={loadAll} disabled={loading}>Refresh</button>
-          <button className="px-4 py-2 rounded bg-yellow-400" onClick={() => { if (window.confirm('Send notifications to all families?')) alert('Notifications queued') }}>Notify</button>
+  const unpaidForSelectedMonth = useMemo(() => {
+    return families.filter(f => {
+      const t = f.taxHistory?.find(x => x.month === taxMonth);
+      return (t && !t.paid) || !t;
+    });
+  }, [families, taxMonth]);
+
+  const totalPaidThisMonth = useMemo(() => {
+    return paidForSelectedMonth.reduce((sum, f) => {
+      const t = f.taxHistory?.find(x => x.month === taxMonth && x.paid);
+      return sum + (t ? Number(t.amount || 0) : 0);
+    }, 0);
+  }, [paidForSelectedMonth, taxMonth]);
+
+  // ---------- Navigation Tabs ----------
+  const NavigationTabs = () => (
+    <div className="flex overflow-x-auto border-b mb-6 bg-white rounded-lg shadow-sm">
+      {[
+        { id: "families", label: "Families", icon: "👨‍👩‍👧‍👦" },
+        { id: "events", label: "Events", icon: "📅" },
+        { id: "workers", label: "Workers", icon: "👷" },
+        { id: "history", label: "History", icon: "📚" },
+        { id: "gallery", label: "Gallery", icon: "🖼️" }
+      ].map((tab) => (
+        <button
+          key={tab.id}
+          onClick={() => setActiveTab(tab.id)}
+          className={`flex-1 min-w-32 px-4 py-3 text-sm font-medium transition-colors ${
+            activeTab === tab.id
+              ? "border-b-2 border-blue-600 text-blue-600 bg-blue-50"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+          }`}
+        >
+          <span className="mr-2">{tab.icon}</span>
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  // ---------- Render Components ----------
+  const FamiliesSection = () => (
+    <section className="space-y-6">
+      {/* Header with Search and Actions */}
+      <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+        <h2 className="text-xl font-bold text-gray-800">Family Management</h2>
+        <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+          <input
+            value={searchFamily}
+            onChange={(e) => setSearchFamily(e.target.value)}
+            placeholder="Search families..."
+            className="border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={loadAll}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors font-medium"
+            >
+              Refresh
+            </button>
+            <button
+              onClick={sendNotifications}
+              className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors font-medium"
+            >
+              Send Notifications
+            </button>
+          </div>
         </div>
-      </header>
+      </div>
 
-      {errorMsg && <div className="rounded bg-red-50 text-red-800 p-3">{errorMsg}</div>}
-      {loading && <div className="rounded bg-blue-50 text-blue-800 p-3">Loading...</div>}
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Create Family Form */}
+        <div className="bg-white p-4 rounded-lg shadow-sm border">
+          <h3 className="font-semibold text-lg mb-3 text-gray-800">Create New Family</h3>
+          <div className="grid gap-3 md:grid-cols-2">
+            <input
+              placeholder="Family ID *"
+              value={newFamily.familyId}
+              onChange={(e) => setNewFamily({ ...newFamily, familyId: e.target.value })}
+              className="border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              placeholder="Leader name *"
+              value={newFamily.leaderName}
+              onChange={(e) => setNewFamily({ ...newFamily, leaderName: e.target.value })}
+              className="border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              placeholder="Email *"
+              type="email"
+              value={newFamily.email}
+              onChange={(e) => setNewFamily({ ...newFamily, email: e.target.value })}
+              className="border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              placeholder="Password *"
+              type="password"
+              value={newFamily.password}
+              onChange={(e) => setNewFamily({ ...newFamily, password: e.target.value })}
+              className="border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              placeholder="Members (comma separated)"
+              value={newFamily.members}
+              onChange={(e) => setNewFamily({ ...newFamily, members: e.target.value })}
+              className="border border-gray-300 px-3 py-2 rounded md:col-span-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              placeholder="Phone"
+              value={newFamily.phone}
+              onChange={(e) => setNewFamily({ ...newFamily, phone: e.target.value })}
+              className="border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              placeholder="Address"
+              value={newFamily.address}
+              onChange={(e) => setNewFamily({ ...newFamily, address: e.target.value })}
+              className="border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="mt-4">
+            <button
+              onClick={createFamily}
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors font-medium w-full"
+            >
+              Create Family
+            </button>
+          </div>
+        </div>
 
-      {/* Families + Add Family column */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded shadow p-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-3">
-            <input type="search" placeholder="Search families..." value={searchFamily} onChange={(e) => setSearchFamily(e.target.value)} className="w-full sm:w-64 p-2 border rounded" />
+        {/* Tax Management */}
+        <div className="bg-white p-4 rounded-lg shadow-sm border">
+          <h3 className="font-semibold text-lg mb-3 text-gray-800">Tax Management</h3>
+          
+          {/* Bulk Tax Form */}
+          <div className="space-y-3 mb-4">
             <div className="flex items-center gap-2">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={selectAll} onChange={toggleSelectAll} />
-                Select all
-              </label>
-              <span className="text-sm text-gray-600">Selected: {selectedFamilies.length}</span>
+              <input
+                type="checkbox"
+                checked={selectAll}
+                onChange={toggleSelectAll}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+              />
+              <label className="text-sm font-medium">Select All Families</label>
+            </div>
+            
+            <div className="grid gap-2">
+              <div className="text-xs text-gray-500">Selected: {selectedFamilies.length} families</div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="month"
+                  value={taxMonth}
+                  onChange={(e) => setTaxMonth(e.target.value)}
+                  className="border border-gray-300 px-3 py-2 rounded flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <input
+                  placeholder="Amount"
+                  type="number"
+                  value={taxAmount}
+                  onChange={(e) => setTaxAmount(e.target.value)}
+                  className="border border-gray-300 px-3 py-2 rounded w-32 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={taxPaid}
+                  onChange={(e) => setTaxPaid(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                />
+                <label className="text-sm">Mark as Paid</label>
+              </div>
+              <button
+                onClick={addTaxBulk}
+                disabled={!selectedFamilies.length}
+                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded transition-colors font-medium"
+              >
+                Add Tax to Selected
+              </button>
             </div>
           </div>
 
-          <div className="overflow-auto max-h-[36rem] border rounded">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-100 sticky top-0">
-                <tr>
-                  <th className="p-2 text-center w-12"><input type="checkbox" checked={selectAll} onChange={toggleSelectAll} /></th>
-                  <th className="p-2 text-left">Family ID</th>
-                  <th className="p-2">Leader</th>
-                  <th className="p-2 text-center">Approved</th>
-                  <th className="p-2">Latest Tax</th>
-                  <th className="p-2 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredFamilies.length === 0 && (
-                  <tr><td colSpan={6} className="p-6 text-center text-gray-600">No families found.</td></tr>
-                )}
-                {filteredFamilies.map((f) => {
-                  const lastTax = f.taxHistory?.slice(-1)[0];
-                  return (
-                    <tr key={f._id} className="hover:bg-gray-50">
-                      <td className="p-2 text-center"><input type="checkbox" checked={selectedFamilies.includes(f._id)} onChange={() => toggleFamilySelection(f._id)} /></td>
-                      <td className="p-2">{f.familyId}</td>
-                      <td className="p-2">{f.leaderName}</td>
-                      <td className="p-2 text-center">{f.approved ? <span className="text-green-600">Yes</span> : <span className="text-red-600">No</span>}</td>
-                      <td className="p-2">{lastTax ? `${lastTax.month}: ₹${lastTax.amount} (${lastTax.paid ? "Paid" : "Pending"})` : "-"}</td>
-                      <td className="p-2 text-center space-x-2">
-                        <button onClick={() => approveFamily(f._id, true)} className="px-2 py-1 text-white bg-green-600 rounded text-xs">Approve</button>
-                        <button onClick={() => approveFamily(f._id, false)} className="px-2 py-1 text-white bg-red-600 rounded text-xs">Reject</button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          {/* Tax Summary */}
+          <div className="border-t pt-3">
+            <div className="flex justify-between items-center mb-2">
+              <h4 className="font-semibold text-gray-700">Month: {taxMonth}</h4>
+              <div className="text-sm font-medium">
+                Total Paid: <span className="text-green-600">₹{totalPaidThisMonth}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Families Table */}
+      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="p-3 text-left font-medium text-gray-700">Select</th>
+                <th className="p-3 text-left font-medium text-gray-700">Family ID</th>
+                <th className="p-3 text-left font-medium text-gray-700">Leader</th>
+                <th className="p-3 text-left font-medium text-gray-700">Status</th>
+                <th className="p-3 text-left font-medium text-gray-700">Latest Tax</th>
+                <th className="p-3 text-left font-medium text-gray-700">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {familiesFiltered.map(f => {
+                const latest = f.taxHistory?.length ? f.taxHistory[f.taxHistory.length - 1] : null;
+                return (
+                  <tr key={f._id} className="hover:bg-gray-50">
+                    <td className="p-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedFamilies.includes(f._id)}
+                        onChange={() => toggleSelectFamily(f._id)}
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                      />
+                    </td>
+                    <td className="p-3 font-medium text-gray-900">{f.familyId}</td>
+                    <td className="p-3 text-gray-700">{f.leaderName}</td>
+                    <td className="p-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        f.approved 
+                          ? "bg-green-100 text-green-800" 
+                          : "bg-yellow-100 text-yellow-800"
+                      }`}>
+                        {f.approved ? "Approved" : "Pending"}
+                      </span>
+                    </td>
+                    <td className="p-3 text-gray-600">
+                      {latest ? (
+                        <div>
+                          <div>{latest.month} - ₹{latest.amount}</div>
+                          <span className={`text-xs ${
+                            latest.paid ? "text-green-600" : "text-red-600"
+                          }`}>
+                            {latest.paid ? "Paid" : "Unpaid"}
+                          </span>
+                        </div>
+                      ) : "No Tax"}
+                    </td>
+                    <td className="p-3 space-x-2">
+                      {!f.approved && (
+                        <>
+                          <button
+                            onClick={() => approveFamily(f._id, true)}
+                            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => approveFamily(f._id, false)}
+                            className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {familiesFiltered.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            No families found
+          </div>
+        )}
+      </div>
+
+      {/* Tax Status Cards */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="bg-white p-4 rounded-lg shadow-sm border">
+          <h4 className="font-semibold text-green-700 mb-3 flex items-center gap-2">
+            <span>Paid Families</span>
+            <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm">
+              {paidForSelectedMonth.length}
+            </span>
+          </h4>
+          <div className="max-h-48 overflow-auto space-y-2">
+            {paidForSelectedMonth.map(f => {
+              const t = f.taxHistory.find(x => x.month === taxMonth && x.paid);
+              return (
+                <div key={f._id} className="flex justify-between items-center p-2 border-b border-gray-100">
+                  <div>
+                    <div className="font-medium text-gray-900">{f.familyId} — {f.leaderName}</div>
+                    <div className="text-sm text-gray-600">₹{t?.amount} • {t?.month}</div>
+                  </div>
+                  <span className="text-green-600 text-sm font-medium">Paid</span>
+                </div>
+              );
+            })}
+            {paidForSelectedMonth.length === 0 && (
+              <div className="text-center text-gray-500 py-4">No paid families for selected month</div>
+            )}
           </div>
         </div>
 
-        {/* Add Family panel */}
-        <aside className="bg-white rounded shadow p-4 sticky top-4">
-          <h2 className="text-lg font-semibold mb-3">Add New Family</h2>
-          <div className="space-y-2">
-            <input className="w-full p-2 border rounded" placeholder="Family ID" value={newFamily.familyId} onChange={(e) => setNewFamily({ ...newFamily, familyId: e.target.value })} />
-            <input className="w-full p-2 border rounded" placeholder="Leader Name" value={newFamily.leaderName} onChange={(e) => setNewFamily({ ...newFamily, leaderName: e.target.value })} />
-            <input className="w-full p-2 border rounded" placeholder="Email" type="email" value={newFamily.email} onChange={(e) => setNewFamily({ ...newFamily, email: e.target.value })} />
-            <input className="w-full p-2 border rounded" placeholder="Password" type="password" value={newFamily.password} onChange={(e) => setNewFamily({ ...newFamily, password: e.target.value })} />
-            <input className="w-full p-2 border rounded" placeholder="Members (comma-separated)" value={newFamily.members} onChange={(e) => setNewFamily({ ...newFamily, members: e.target.value })} />
-            <input className="w-full p-2 border rounded" placeholder="Phone" value={newFamily.phone} onChange={(e) => setNewFamily({ ...newFamily, phone: e.target.value })} />
-            <input className="w-full p-2 border rounded" placeholder="Address" value={newFamily.address} onChange={(e) => setNewFamily({ ...newFamily, address: e.target.value })} />
-            <button className="w-full py-2 rounded bg-blue-600 text-white" onClick={createFamily} disabled={loading}>Create Family</button>
+        <div className="bg-white p-4 rounded-lg shadow-sm border">
+          <h4 className="font-semibold text-red-700 mb-3 flex items-center gap-2">
+            <span>Pending Families</span>
+            <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-sm">
+              {unpaidForSelectedMonth.length}
+            </span>
+          </h4>
+          <div className="max-h-48 overflow-auto space-y-2">
+            {unpaidForSelectedMonth.map(f => {
+              const t = f.taxHistory?.find(x => x.month === taxMonth);
+              const amount = t ? t.amount : taxAmount || "-";
+              
+              if (t?.paid) return null;
+              
+              return (
+                <div key={f._id} className="flex justify-between items-center p-2 border-b border-gray-100">
+                  <div>
+                    <div className="font-medium text-gray-900">{f.familyId} — {f.leaderName}</div>
+                    <div className="text-sm text-gray-600">Amount: ₹{amount} • {t ? t.month : taxMonth}</div>
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => markFamilyTaxPaid(f._id, taxMonth)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-medium transition-colors"
+                    >
+                      Mark Paid
+                    </button>
+                    {t && (
+                      <button
+                        onClick={() => deleteTaxRecord(f._id, t._id)}
+                        className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-medium transition-colors"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {unpaidForSelectedMonth.length === 0 && (
+              <div className="text-center text-gray-500 py-4">No pending families for selected month</div>
+            )}
           </div>
-        </aside>
-      </section>
+        </div>
+      </div>
+    </section>
+  );
 
-      {/* Tax Section */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <article className="bg-white rounded shadow p-4">
-          <h3 className="font-semibold mb-3">Add Bulk Tax</h3>
-          <div className="space-y-2">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={selectAll} onChange={toggleSelectAll} />
-              <span className="text-sm">Select All Families</span>
-            </label>
-            <input type="month" className="w-full p-2 border rounded" value={taxMonth} onChange={(e) => setTaxMonth(e.target.value)} />
-            <input type="number" className="w-full p-2 border rounded" placeholder="Amount (₹)" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} />
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={taxPaid} onChange={(e) => setTaxPaid(e.target.checked)} />
-              <span className="text-sm">Mark As Paid</span>
-            </label>
-            <button className="w-full py-2 rounded bg-green-600 text-white" onClick={addTaxBulk} disabled={loading}>Add Tax to Selected</button>
-            <p className="text-center font-semibold mt-3">Total Paid this month: <span className="text-indigo-700">₹{totalPaid}</span></p>
-          </div>
-        </article>
+  const EventsSection = () => (
+    <section className="space-y-6">
+      <h2 className="text-xl font-bold text-gray-800">Event Management</h2>
+      
+      <div className="bg-white p-4 rounded-lg shadow-sm border">
+        <h3 className="font-semibold text-lg mb-3">Add New Event</h3>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            placeholder="Event Title"
+            value={newEvent.title}
+            onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+            className="border border-gray-300 px-3 py-2 rounded flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="date"
+            value={newEvent.date}
+            onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
+            className="border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={addEvent}
+            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded transition-colors font-medium"
+          >
+            Add Event
+          </button>
+        </div>
+      </div>
 
-        <article className="bg-white rounded shadow p-4 max-h-[300px] overflow-auto">
-          <h3 className="font-semibold mb-3">Paid Families</h3>
-          {!paidFamilies.length && <p>No paid families.</p>}
-          {paidFamilies.map((f) => (
-            <div key={f._id} className="p-2 rounded mb-2 bg-green-50 flex justify-between items-center">
+      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+        <div className="p-4 border-b">
+          <h3 className="font-semibold text-gray-800">Current Events</h3>
+        </div>
+        <div className="divide-y divide-gray-200">
+          {events.map(ev => (
+            <div key={ev._id} className="p-4 flex justify-between items-center hover:bg-gray-50">
               <div>
-                <div className="font-medium">{f.familyId} — {f.leaderName}</div>
-                <div className="text-sm text-gray-600">{f.taxHistory.find(t => t.month === taxMonth && t.paid)?.amount ? `₹${f.taxHistory.find(t => t.month === taxMonth && t.paid)?.amount}` : ""}</div>
+                <div className="font-medium text-gray-900">{ev.title}</div>
+                <div className="text-sm text-gray-600">
+                  {new Date(ev.date).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </div>
+              </div>
+              <button
+                onClick={() => deleteEvent(ev._id)}
+                className="text-red-600 hover:text-red-800 font-medium text-sm"
+              >
+                Delete
+              </button>
+            </div>
+          ))}
+          {events.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              No events scheduled
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+
+  const WorkersSection = () => (
+    <section className="space-y-6">
+      <h2 className="text-xl font-bold text-gray-800">Worker Management</h2>
+      
+      <div className="bg-white p-4 rounded-lg shadow-sm border">
+        <h3 className="font-semibold text-lg mb-3">Add New Worker</h3>
+        <div className="space-y-3">
+          <input
+            placeholder="Worker Type (e.g., Electrician, Plumber)"
+            value={newWorker.type}
+            onChange={(e) => setNewWorker({ ...newWorker, type: e.target.value })}
+            className="border border-gray-300 px-3 py-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            placeholder="Description"
+            value={newWorker.description}
+            onChange={(e) => setNewWorker({ ...newWorker, description: e.target.value })}
+            className="border border-gray-300 px-3 py-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={addWorker}
+            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded transition-colors font-medium"
+          >
+            Add Worker
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+        <div className="p-4 border-b">
+          <h3 className="font-semibold text-gray-800">Available Workers</h3>
+        </div>
+        <div className="divide-y divide-gray-200">
+          {workers.map(w => (
+            <div key={w._id} className="p-4 flex justify-between items-start hover:bg-gray-50">
+              <div>
+                <div className="font-medium text-gray-900">{w.type}</div>
+                <div className="text-sm text-gray-600 mt-1">{w.description}</div>
+              </div>
+              <button
+                onClick={() => deleteWorker(w._id)}
+                className="text-red-600 hover:text-red-800 font-medium text-sm"
+              >
+                Delete
+              </button>
+            </div>
+          ))}
+          {workers.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              No workers available
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+
+  const HistorySection = () => (
+    <section className="space-y-6">
+      <h2 className="text-xl font-bold text-gray-800">History Management</h2>
+      
+      <div className="bg-white p-4 rounded-lg shadow-sm border">
+        <h3 className="font-semibold text-lg mb-3">Add History Entry</h3>
+        <div className="space-y-3">
+          <input
+            placeholder="Content (English)"
+            value={newHistory.contentEN}
+            onChange={(e) => setNewHistory({ ...newHistory, contentEN: e.target.value })}
+            className="border border-gray-300 px-3 py-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            placeholder="Content (Tamil)"
+            value={newHistory.contentTA}
+            onChange={(e) => setNewHistory({ ...newHistory, contentTA: e.target.value })}
+            className="border border-gray-300 px-3 py-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={addHistory}
+            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded transition-colors font-medium"
+          >
+            Add History
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+        <div className="p-4 border-b">
+          <h3 className="font-semibold text-gray-800">History Entries</h3>
+        </div>
+        <div className="divide-y divide-gray-200">
+          {historyItems.map(h => (
+            <div key={h._id} className="p-4 flex justify-between items-start hover:bg-gray-50">
+              <div className="flex-1">
+                {h.content?.en && (
+                  <div className="mb-2">
+                    <div className="text-sm text-gray-500 font-medium">English:</div>
+                    <div className="text-gray-900">{h.content.en}</div>
+                  </div>
+                )}
+                {h.content?.ta && (
+                  <div>
+                    <div className="text-sm text-gray-500 font-medium">Tamil:</div>
+                    <div className="text-gray-900">{h.content.ta}</div>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => deleteHistory(h._id)}
+                className="text-red-600 hover:text-red-800 font-medium text-sm ml-4"
+              >
+                Delete
+              </button>
+            </div>
+          ))}
+          {historyItems.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              No history entries
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+
+  const GallerySection = () => (
+    <section className="space-y-6">
+      <h2 className="text-xl font-bold text-gray-800">Gallery Management</h2>
+      
+      <div className="bg-white p-4 rounded-lg shadow-sm border">
+        <h3 className="font-semibold text-lg mb-3">Upload New File</h3>
+        <div className="space-y-3">
+          <input
+            type="file"
+            onChange={(e) => setGalleryFile(e.target.files[0])}
+            className="border border-gray-300 px-3 py-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            placeholder="Title"
+            value={galleryMeta.title}
+            onChange={(e) => setGalleryMeta({ ...galleryMeta, title: e.target.value })}
+            className="border border-gray-300 px-3 py-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            placeholder="Description"
+            value={galleryMeta.description}
+            onChange={(e) => setGalleryMeta({ ...galleryMeta, description: e.target.value })}
+            className="border border-gray-300 px-3 py-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={uploadGallery}
+            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded transition-colors font-medium"
+          >
+            Upload File
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+        <div className="p-4 border-b">
+          <h3 className="font-semibold text-gray-800">Gallery Items</h3>
+        </div>
+        <div className="divide-y divide-gray-200">
+          {gallery.map(g => (
+            <div key={g._id} className="p-4 flex justify-between items-center hover:bg-gray-50">
+              <div>
+                <div className="font-medium text-gray-900">{g.title}</div>
+                <div className="text-sm text-gray-600">{g.description}</div>
+              </div>
+              <div className="flex items-center gap-3">
+                <a
+                  href={`${API_BASE}${g.url}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                >
+                  View
+                </a>
+                <button
+                  onClick={() => deleteGallery(g._id)}
+                  className="text-red-600 hover:text-red-800 font-medium text-sm"
+                >
+                  Delete
+                </button>
               </div>
             </div>
           ))}
-        </article>
+          {gallery.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              No gallery items
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
 
-        <article className="bg-white rounded shadow p-4 max-h-[300px] overflow-auto">
-          <h3 className="font-semibold mb-3">Pending Families</h3>
-          {!unpaidFamilies.length && <p>No pending families.</p>}
-          {unpaidFamilies.map((f) => {
-            const entry = f.taxHistory.find(t => t.month === taxMonth);
-            const amount = entry?.amount || taxAmount || "-";
-            return (
-              <div key={f._id} className="p-2 rounded mb-2 bg-red-50 flex justify-between items-center">
-                <div className="text-sm">{f.familyId} — {f.leaderName} • ₹{amount}</div>
-                <button className="px-2 py-1 rounded bg-blue-600 text-white text-sm" onClick={() => markTaxPaid(f._id, taxMonth)} disabled={loading}>Mark Paid</button>
-              </div>
-            );
-          })}
-        </article>
-      </section>
+  // ---------- Main Render ----------
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Header */}
+        <div className="bg-white rounded-xl shadow-sm border p-6 mb-8 text-center">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
+            Admin Dashboard
+          </h1>
+          <p className="text-gray-600">Manage families, taxes, events, and more</p>
+        </div>
 
-      {/* Events & Workers */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <article className="bg-white rounded shadow p-4">
-          <h3 className="font-semibold mb-3">Events</h3>
-          <ul className="divide-y overflow-auto max-h-48">
-            {!events.length && <li className="p-3 text-sm text-gray-600">No events found.</li>}
-            {events.map(ev => (
-              <li key={ev._id} className="flex justify-between items-center py-2">
-                <div>{ev.title} • <span className="text-sm text-gray-600">{new Date(ev.date).toLocaleDateString()}</span></div>
-                <button className="px-2 py-1 rounded bg-red-600 text-white text-xs" onClick={() => deleteEvent(ev._id)}>Delete</button>
-              </li>
-            ))}
-          </ul>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
-            <input className="p-2 border rounded" placeholder="Title" value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} />
-            <input className="p-2 border rounded" type="date" value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })} />
-            <button className="px-3 py-2 rounded bg-green-600 text-white" onClick={addEvent}>Add Event</button>
+        {/* Status Messages */}
+        {loading && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center mb-6">
+            <div className="flex items-center justify-center gap-2 text-blue-700">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-700"></div>
+              Processing...
+            </div>
           </div>
-        </article>
+        )}
 
-        <article className="bg-white rounded shadow p-4">
-          <h3 className="font-semibold mb-3">Workers</h3>
-          <ul className="divide-y overflow-auto max-h-48">
-            {!workers.length && <li className="p-3 text-sm text-gray-600">No workers found.</li>}
-            {workers.map(w => (
-              <li key={w._id} className="flex justify-between items-center py-2">
-                <div>{w.type} — <span className="text-sm text-gray-600">{w.description}</span></div>
-                <button className="px-2 py-1 rounded bg-red-600 text-white text-xs" onClick={() => deleteWorker(w._id)}>Delete</button>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-3 grid gap-2">
-            <input className="p-2 border rounded" placeholder="Type" value={newWorker.type} onChange={e => setNewWorker({ ...newWorker, type: e.target.value })} />
-            <input className="p-2 border rounded" placeholder="Description" value={newWorker.description} onChange={e => setNewWorker({ ...newWorker, description: e.target.value })} />
-            <button className="px-3 py-2 rounded bg-green-600 text-white" onClick={addWorker}>Add Worker</button>
+        {errorMsg && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center mb-6 text-red-700">
+            {errorMsg}
           </div>
-        </article>
-      </section>
+        )}
 
-      {/* History & Gallery */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <article className="bg-white rounded shadow p-4">
-          <h3 className="font-semibold mb-3">History</h3>
-          <ul className="divide-y overflow-auto max-h-48">
-            {!historyItems.length && <li className="p-3 text-sm text-gray-600">No history records.</li>}
-            {historyItems.map(item => (
-              <li key={item._id} className="flex justify-between items-start py-2">
-                <div className="text-sm">{item.content?.en || item.content?.ta}</div>
-                <button className="px-2 py-1 rounded bg-red-600 text-white text-xs" onClick={() => deleteHistory(item._id)}>Delete</button>
-              </li>
-            ))}
-          </ul>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
-            <input className="p-2 border rounded" placeholder="Content English" value={newHistory.contentEN} onChange={e => setNewHistory({ ...newHistory, contentEN: e.target.value })} />
-            <input className="p-2 border rounded" placeholder="Content Other" value={newHistory.contentTA} onChange={e => setNewHistory({ ...newHistory, contentTA: e.target.value })} />
-            <button className="px-3 py-2 rounded bg-green-600 text-white" onClick={addHistory}>Add History</button>
+        {successMsg && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center mb-6 text-green-700">
+            {successMsg}
           </div>
-        </article>
+        )}
 
-        <article className="bg-white rounded shadow p-4">
-          <h3 className="font-semibold mb-3">Gallery</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {!gallery.length && <div className="text-sm text-gray-600">No gallery items.</div>}
-            {gallery.map(item => (
-              <div key={item._id} className="p-2 border rounded flex flex-col">
-                <a href={`${API_BASE}${item.url}`} target="_blank" rel="noreferrer" className="truncate underline text-blue-600">{item.title || "Untitled"}</a>
-                <div className="text-xs text-gray-600 truncate mb-2">{item.description || ""}</div>
-                <div className="mt-auto flex justify-end">
-                  <button className="px-2 py-1 rounded bg-red-600 text-white text-xs" onClick={() => deleteGallery(item._id)}>Delete</button>
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* Navigation Tabs */}
+        <NavigationTabs />
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
-            <input type="file" onChange={e => setGalleryFile(e.target.files[0])} />
-            <input className="p-2 border rounded" placeholder="Title" value={galleryMeta.title} onChange={e => setGalleryMeta({ ...galleryMeta, title: e.target.value })} />
-            <input className="p-2 border rounded" placeholder="Description" value={galleryMeta.description} onChange={e => setGalleryMeta({ ...galleryMeta, description: e.target.value })} />
-            <button className="col-span-full px-3 py-2 rounded bg-green-600 text-white" onClick={uploadGallery} disabled={!galleryFile}>Upload</button>
-          </div>
-        </article>
-      </section>
+        {/* Content Section */}
+        <div className="bg-white rounded-lg shadow-sm border p-4 md:p-6">
+          {activeTab === "families" && <FamiliesSection />}
+          {activeTab === "events" && <EventsSection />}
+          {activeTab === "workers" && <WorkersSection />}
+          {activeTab === "history" && <HistorySection />}
+          {activeTab === "gallery" && <GallerySection />}
+        </div>
+      </div>
     </div>
   );
 };

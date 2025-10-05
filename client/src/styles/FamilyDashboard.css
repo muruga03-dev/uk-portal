@@ -1,0 +1,228 @@
+/* ---------------- BASE STYLES ---------------- */
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #f9fafb;
+  color: #1f2937;
+  margin: 0;
+  padding: 0;
+}
+
+h1, h2, h3 {
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+}
+
+button {
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+input, select, textarea {
+  font-family: inherit;
+  outline: none;
+}
+
+/* ---------------- CONTAINERS ---------------- */
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.space-y-6 > * + * {
+  margin-top: 1.5rem;
+}
+
+/* ---------------- HEADER ---------------- */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+header h1 {
+  font-size: 2rem;
+}
+
+header button {
+  padding: 0.5rem 1rem;
+  background-color: #e5e7eb;
+  border-radius: 0.375rem;
+}
+
+/* ---------------- ALERTS ---------------- */
+.alert {
+  border-radius: 0.375rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.alert-error {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.alert-loading {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+/* ---------------- TABLES ---------------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+thead th {
+  background-color: #f3f4f6;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+td {
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.875rem;
+}
+
+tr:hover {
+  background-color: #f9fafb;
+}
+
+/* ---------------- INPUTS & BUTTONS ---------------- */
+input, select, textarea {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  margin-bottom: 0.5rem;
+}
+
+button {
+  border: none;
+  color: #fff;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+}
+
+button.bg-green-600 { background-color: #16a34a; }
+button.bg-blue-600 { background-color: #2563eb; }
+button.bg-red-600 { background-color: #dc2626; }
+button.bg-slate-200 { background-color: #e2e8f0; color: #1f2937; }
+
+/* ---------------- CARDS ---------------- */
+.card, article, aside, section {
+  background-color: #fff;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.1);
+  padding: 1rem;
+}
+
+/* ---------------- FLEX & GRID ---------------- */
+.grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.flex {
+  display: flex;
+  align-items: center;
+}
+
+.justify-between { justify-content: space-between; }
+.items-center { align-items: center; }
+
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 0.75rem; }
+.gap-6 { gap: 1.5rem; }
+
+/* ---------------- SCROLLING ---------------- */
+.overflow-auto { overflow: auto; }
+.max-h-48 { max-height: 12rem; }
+.max-h-72 { max-height: 18rem; }
+.max-h-96 { max-height: 24rem; }
+
+/* ---------------- TEXT ---------------- */
+.text-sm { font-size: 0.875rem; }
+.text-xs { font-size: 0.75rem; }
+.font-semibold { font-weight: 600; }
+.font-medium { font-weight: 500; }
+.text-center { text-align: center; }
+.text-red-600 { color: #dc2626; }
+.text-red-800 { color: #991b1b; }
+.text-green-600 { color: #16a34a; }
+.text-indigo-700 { color: #4338ca; }
+.text-gray-600 { color: #4b5563; }
+.text-blue-600 { color: #2563eb; }
+
+/* ---------------- RESPONSIVE LAYOUTS ---------------- */
+@media (min-width: 640px) {
+  .sm\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .sm\\:grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .sm\\:flex-row { flex-direction: row; }
+  .sm\\:w-64 { width: 16rem; }
+}
+
+@media (min-width: 768px) {
+  .md\\:grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .md\\:grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (min-width: 1024px) {
+  .lg\\:grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .lg\\:col-span-2 { grid-column: span 2 / span 2; }
+  .lg\\:col-span-3 { grid-column: span 3 / span 3; }
+}
+
+/* ---------------- MOBILE TABLE RESPONSIVE ---------------- */
+@media (max-width: 639px) {
+  table, thead, tbody, th, td, tr { display: block; }
+  thead { display: none; }
+  tr {
+    margin-bottom: 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+  }
+  td {
+    padding-left: 50%;
+    position: relative;
+  }
+  td::before {
+    position: absolute;
+    left: 0;
+    width: 45%;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+  td:nth-of-type(1)::before { content: "Select"; }
+  td:nth-of-type(2)::before { content: "Family ID"; }
+  td:nth-of-type(3)::before { content: "Leader"; }
+  td:nth-of-type(4)::before { content: "Approved"; }
+  td:nth-of-type(5)::before { content: "Latest Tax"; }
+  td:nth-of-type(6)::before { content: "Actions"; }
+}
+
+/* ---------------- MISC ---------------- */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sticky {
+  position: sticky;
+  top: 0;
+  background-color: #fff;
+  z-index: 10;
+}

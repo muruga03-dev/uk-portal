@@ -7,23 +7,34 @@ const Events = () => {
   const [error, setError] = useState(null);
 
   const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
+  const token = localStorage.getItem("adminToken"); // Add admin token
 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(`${API_BASE}/api/admin/events`);
+        setError(null);
+
+        const res = await axios.get(`${API_BASE}/api/admin/events`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+
         setEvents(res.data || []);
       } catch (err) {
         console.error("Error fetching events:", err);
-        setError("⚠️ Failed to load events. Please try again later.");
+
+        if (err.response?.status === 401) {
+          setError("⚠️ Unauthorized access. Please log in as admin.");
+        } else {
+          setError("⚠️ Failed to load events. Please try again later.");
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchEvents();
-  }, [API_BASE]);
+  }, [API_BASE, token]);
 
   if (loading)
     return (

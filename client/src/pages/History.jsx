@@ -9,29 +9,44 @@ const History = () => {
   const [error, setError] = useState(null);
 
   const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
+  const token = localStorage.getItem("adminToken"); // use token if required
 
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await axios.get(`${API_BASE}/api/admin/history`);
-        const latestHistory = res.data?.[res.data.length - 1];
+        setLoading(true);
+        setError(null);
 
-        if (latestHistory?.content) {
+        const res = await axios.get(`${API_BASE}/api/admin/history`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+
+        if (res.data && res.data.length > 0) {
+          const latestHistory = res.data[res.data.length - 1];
           const lang = i18n.language || "en";
-          setHistory(latestHistory.content[lang] || t("history_not_available"));
+
+          setHistory(
+            latestHistory?.content?.[lang] ||
+              latestHistory?.content?.en ||
+              t("history_not_available")
+          );
         } else {
           setHistory(t("no_history_found"));
         }
       } catch (err) {
         console.error("Error fetching history:", err);
-        setError(t("failed_load_history"));
+        if (err.response?.status === 401) {
+          setError(t("unauthorized_access"));
+        } else {
+          setError(t("failed_load_history"));
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchHistory();
-  }, [i18n.language, API_BASE, t]);
+  }, [i18n.language, API_BASE, t, token]);
 
   if (loading)
     return (

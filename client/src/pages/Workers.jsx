@@ -7,22 +7,33 @@ const Workers = () => {
   const [error, setError] = useState(null);
 
   const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
+  const token = localStorage.getItem("adminToken"); // Admin token
 
   useEffect(() => {
     const fetchWorkers = async () => {
       try {
-        const res = await axios.get(`${API_BASE}/api/admin/workers`);
+        setLoading(true);
+        setError(null);
+
+        const res = await axios.get(`${API_BASE}/api/admin/workers`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+
         setWorkers(res.data || []);
       } catch (err) {
         console.error("Error fetching workers:", err);
-        setError("⚠️ Failed to load worker types. Please try again later.");
+        if (err.response?.status === 401) {
+          setError("⚠️ Unauthorized access. Please log in as admin.");
+        } else {
+          setError("⚠️ Failed to load worker types. Please try again later.");
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchWorkers();
-  }, [API_BASE]);
+  }, [API_BASE, token]);
 
   if (loading)
     return (
@@ -53,7 +64,9 @@ const Workers = () => {
               key={worker._id}
               className="border rounded-lg p-4 shadow-md hover:shadow-xl transition-transform duration-300 hover:scale-105 bg-white flex flex-col justify-between"
             >
-              <h3 className="text-xl font-semibold mb-2">{worker.type}</h3>
+              <h3 className="text-xl font-semibold mb-2">
+                {worker.type || "Untitled Worker"}
+              </h3>
               <p className="text-gray-700">
                 {worker.description || "No description available."}
               </p>

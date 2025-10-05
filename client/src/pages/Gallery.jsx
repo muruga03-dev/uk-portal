@@ -8,13 +8,18 @@ const Gallery = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Backend API
   const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
+  const token = localStorage.getItem("adminToken"); // Admin token
 
   useEffect(() => {
     const fetchGallery = async () => {
       try {
-        const res = await axios.get(`${API_BASE}/api/admin/gallery`);
+        setLoading(true);
+        setError(null);
+
+        const res = await axios.get(`${API_BASE}/api/admin/gallery`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
 
         const safeImages = (res.data || []).map((img) => {
           let finalUrl = "/fallback.png";
@@ -31,14 +36,18 @@ const Gallery = () => {
         setImages(safeImages);
       } catch (err) {
         console.error("Error fetching gallery:", err);
-        setError("⚠️ Failed to load gallery. Please try again later.");
+        if (err.response?.status === 401) {
+          setError("⚠️ Unauthorized access. Please log in as admin.");
+        } else {
+          setError("⚠️ Failed to load gallery. Please try again later.");
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchGallery();
-  }, [API_BASE]);
+  }, [API_BASE, token]);
 
   if (loading)
     return (
@@ -75,7 +84,10 @@ const Gallery = () => {
                 src={img.url}
                 alt={img?.title || `Gallery ${idx + 1}`}
                 className="w-full h-full object-cover rounded-3xl transition-transform duration-500 group-hover:scale-110 filter brightness-90 group-hover:brightness-100"
-                onError={(e) => (e.target.src = "/fallback.png")}
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "/fallback.png";
+                }}
               />
               <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
                 <h3 className="text-white text-center font-bold text-lg px-2">
